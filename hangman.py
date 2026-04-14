@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass, field
 from pathlib import Path
 
 LANGUAGE_WORD_FILES: dict[str, tuple[str, Path]] = {
@@ -80,47 +81,77 @@ def filter_words_for_difficulty(
     return [word for word in words if min_length <= len(word) <= max_length]
 
 
+@dataclass
+class HangmanGame:
+    word: str
+    max_errors: int
+    progress: list[str] = field(init=False)
+    guessed_letters: set[str] = field(default_factory=set)
+    errors: int = 0
+
+    def __post_init__(self) -> None:
+        self.progress = ["-" for _ in self.word]
+
+    @property
+    def guesses_remaining(self) -> int:
+        return self.max_errors - self.errors
+
+    @property
+    def guessed_display(self) -> str:
+        guessed = ", ".join(sorted(letter.upper() for letter in self.guessed_letters))
+        return guessed if guessed else "(none)"
+
+    def apply_guess(self, guess: str) -> str:
+        if guess in self.guessed_letters:
+            return "repeat"
+
+        self.guessed_letters.add(guess)
+
+        if guess in self.word:
+            for idx, letter in enumerate(self.word):
+                if letter == guess:
+                    self.progress[idx] = guess.upper()
+            return "correct"
+
+        self.errors += 1
+        return "incorrect"
+
+    def is_won(self) -> bool:
+        return "-" not in self.progress
+
+    def is_lost(self) -> bool:
+        return self.errors >= self.max_errors
+
+
 def run_round(words: list[str], max_errors: int) -> bool:
-    word = choose_word(words)
-    progress = ["-" for _ in word]
-    guessed_letters: set[str] = set()
-    errors = 0
+    game = HangmanGame(word=choose_word(words), max_errors=max_errors)
 
     print("\nNew game started!")
 
     while True:
-        print(f"\nWord: {format_progress(progress)}")
-        print(f"Guesses remaining: {max_errors - errors}")
-        guessed_display = ", ".join(sorted(letter.upper() for letter in guessed_letters))
-        if guessed_display:
-            print(f"Guessed: {guessed_display}")
-        else:
-            print("Guessed: (none)")
+        print(f"\nWord: {format_progress(game.progress)}")
+        print(f"Guesses remaining: {game.guesses_remaining}")
+        print(f"Guessed: {game.guessed_display}")
 
         guess = prompt_letter()
+        outcome = game.apply_guess(guess)
 
-        if guess in guessed_letters:
+        if outcome == "repeat":
             print(f"You already guessed '{guess.upper()}'. Try a new letter.")
             continue
 
-        guessed_letters.add(guess)
-
-        if guess in word:
-            for idx, letter in enumerate(word):
-                if letter == guess:
-                    progress[idx] = guess.upper()
+        if outcome == "correct":
             print("Correct!")
         else:
-            errors += 1
             print("Incorrect.")
 
-        if "-" not in progress:
-            print(f"\nYou win! The word was {word.upper()}.")
+        if game.is_won():
+            print(f"\nYou win! The word was {game.word.upper()}.")
             return True
 
-        if errors >= max_errors:
+        if game.is_lost():
             print(f"\nGame over. You used {max_errors} incorrect guesses.")
-            print(f"The word was {word.upper()}.")
+            print(f"The word was {game.word.upper()}.")
             return False
 
 
