@@ -1,0 +1,16 @@
+# Virtual environment
+.venv/
+
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test/cache tooling
+.pytest_cache/
+
+# Editor settings
+.vscode/
+
+# Local tooling metadata
+.codex

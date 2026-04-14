@@ -1,0 +1,58 @@
+# Hangman CLI (Codex Starter Project)
+
+A simple command-line Hangman game in Python.
+
+## What it does
+
+- Picks a random word from `data/words.txt`
+- Uses only lowercase alphabetic words with at least 6 letters
+- Ignores proper nouns by filtering out non-lowercase entries
+- Shows hidden letters as hyphens (for example: `- - - - - -`)
+- Accepts single-letter guesses from prompt `>`
+- Reveals correct guesses in UPPERCASE
+- Ends game after 10 incorrect guesses
+- Prompts to play again or quit
+
+## Run
+
+```bash
+python3 hangman.py
+```
+
+## Test (pytest)
+
+Install dev dependencies:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+```
+
+Run tests:
+
+```bash
+python3 -m pytest -q
+```
+
+Simple TDD loop:
+
+1. Add or update a test in `tests/`.
+2. Run `python3 -m pytest -q` and watch it fail (red).
+3. Change code to make it pass (green).
+4. Refactor and rerun tests (still green).
+
+## Customize word list
+
+Edit `data/words.txt` and add one word per line.
+
+Rules applied by the loader:
+
+- minimum length: 6
+- letters only (`a-z`)
+- lowercase only
+
+## Suggested Codex practice prompts in VS Code
+
+1. "Add ASCII hangman art that changes with each error."
+2. "Track and display guessed letters in alphabetical order."
+3. "Add a hint command (`?`) that reveals one unrevealed letter and costs 2 errors."
+4. "Refactor into modules and add unit tests for word loading and guess handling."
