@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from hangman import load_words
+from hangman import filter_words_for_difficulty, load_words
 
 
 def test_load_words_filters_and_deduplicates(tmp_path: Path) -> None:
@@ -50,3 +50,11 @@ def test_load_words_keeps_lowercase_unicode_words(tmp_path: Path) -> None:
     result = load_words(words_file)
 
     assert result == ["rivière", "машина"]
+
+
+def test_filter_words_for_difficulty_by_length_band() -> None:
+    words = ["planet", "mountain", "bluebird", "extraordinary"]
+
+    assert filter_words_for_difficulty(words, 6, 7) == ["planet"]
+    assert filter_words_for_difficulty(words, 8, 9) == ["mountain", "bluebird"]
+    assert filter_words_for_difficulty(words, 10, None) == ["extraordinary"]

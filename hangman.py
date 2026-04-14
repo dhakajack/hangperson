@@ -6,11 +6,15 @@ from __future__ import annotations
 import random
 from pathlib import Path
 
-MAX_ERRORS = 10
 LANGUAGE_WORD_FILES: dict[str, tuple[str, Path]] = {
     "e": ("English", Path("data/words_en.txt")),
     "f": ("French", Path("data/words_fr.txt")),
     "r": ("Russian", Path("data/words_ru.txt")),
+}
+DIFFICULTY_SETTINGS: dict[str, tuple[str, int, int | None, int]] = {
+    "e": ("Easy", 6, 7, 10),
+    "m": ("Medium", 8, 9, 8),
+    "h": ("Hard", 10, None, 6),
 }
 
 
@@ -60,7 +64,23 @@ def prompt_language() -> tuple[str, Path]:
         print("Please enter E, F, or R.")
 
 
-def run_round(words: list[str]) -> bool:
+def prompt_difficulty() -> tuple[str, int, int | None, int]:
+    while True:
+        choice = input("Choose difficulty: Easy (E), Medium (M), Hard (H): ").strip().lower()
+        if choice in DIFFICULTY_SETTINGS:
+            return DIFFICULTY_SETTINGS[choice]
+        print("Please enter E, M, or H.")
+
+
+def filter_words_for_difficulty(
+    words: list[str], min_length: int, max_length: int | None
+) -> list[str]:
+    if max_length is None:
+        return [word for word in words if len(word) >= min_length]
+    return [word for word in words if min_length <= len(word) <= max_length]
+
+
+def run_round(words: list[str], max_errors: int) -> bool:
     word = choose_word(words)
     progress = ["-" for _ in word]
     guessed_letters: set[str] = set()
@@ -70,7 +90,7 @@ def run_round(words: list[str]) -> bool:
 
     while True:
         print(f"\nWord: {format_progress(progress)}")
-        print(f"Errors: {errors}/{MAX_ERRORS}")
+        print(f"Guesses remaining: {max_errors - errors}")
 
         guess = prompt_letter()
 
@@ -93,8 +113,8 @@ def run_round(words: list[str]) -> bool:
             print(f"\nYou win! The word was {word.upper()}.")
             return True
 
-        if errors >= MAX_ERRORS:
-            print(f"\nGame over. You used {MAX_ERRORS} incorrect guesses.")
+        if errors >= max_errors:
+            print(f"\nGame over. You used {max_errors} incorrect guesses.")
             print(f"The word was {word.upper()}.")
             return False
 
@@ -114,17 +134,26 @@ def main() -> None:
     print("Guess letters to reveal the hidden word.")
 
     language_name, words_file = prompt_language()
+    difficulty_name, min_length, max_length, max_errors = prompt_difficulty()
 
     try:
         words = load_words(words_file)
+        words = filter_words_for_difficulty(words, min_length, max_length)
     except Exception as exc:
         print(f"Could not start game: {exc}")
         return
 
+    if not words:
+        print(
+            "Could not start game: no words match your selected language and difficulty."
+        )
+        return
+
     print(f"Language selected: {language_name}.")
+    print(f"Difficulty selected: {difficulty_name} ({max_errors} max errors).")
 
     while True:
-        run_round(words)
+        run_round(words, max_errors)
         if not play_again():
             print("Thanks for playing.")
             break
