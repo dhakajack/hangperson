@@ -91,6 +91,11 @@ def run_round(words: list[str], max_errors: int) -> bool:
     while True:
         print(f"\nWord: {format_progress(progress)}")
         print(f"Guesses remaining: {max_errors - errors}")
+        guessed_display = ", ".join(sorted(letter.upper() for letter in guessed_letters))
+        if guessed_display:
+            print(f"Guessed: {guessed_display}")
+        else:
+            print("Guessed: (none)")
 
         guess = prompt_letter()
 
