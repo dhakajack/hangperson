@@ -7,11 +7,15 @@ import random
 from pathlib import Path
 
 MAX_ERRORS = 10
-WORDS_FILE = Path("data/words.txt")
+LANGUAGE_WORD_FILES: dict[str, tuple[str, Path]] = {
+    "e": ("English", Path("data/words_en.txt")),
+    "f": ("French", Path("data/words_fr.txt")),
+    "r": ("Russian", Path("data/words_ru.txt")),
+}
 
 
 def load_words(path: Path) -> list[str]:
-    """Load lowercase English words with at least 6 letters."""
+    """Load lowercase alphabetic words with at least 6 letters."""
     if not path.exists():
         raise FileNotFoundError(f"Words file not found: {path}")
 
@@ -43,9 +47,17 @@ def prompt_letter() -> str:
     while True:
         guess = input("> ").strip().lower()
         if len(guess) != 1 or not guess.isalpha():
-            print("Please enter a single letter (A-Z).")
+            print("Please enter a single letter.")
             continue
         return guess
+
+
+def prompt_language() -> tuple[str, Path]:
+    while True:
+        choice = input("Choose language: English (E), French (F), Russian (R): ").strip().lower()
+        if choice in LANGUAGE_WORD_FILES:
+            return LANGUAGE_WORD_FILES[choice]
+        print("Please enter E, F, or R.")
 
 
 def run_round(words: list[str]) -> bool:
@@ -98,14 +110,18 @@ def play_again() -> bool:
 
 
 def main() -> None:
+    print("Hangman (CLI)")
+    print("Guess letters to reveal the hidden word.")
+
+    language_name, words_file = prompt_language()
+
     try:
-        words = load_words(WORDS_FILE)
+        words = load_words(words_file)
     except Exception as exc:
         print(f"Could not start game: {exc}")
         return
 
-    print("Hangman (CLI)")
-    print("Guess letters to reveal the hidden word.")
+    print(f"Language selected: {language_name}.")
 
     while True:
         run_round(words)

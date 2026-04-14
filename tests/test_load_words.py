@@ -31,3 +31,22 @@ def test_load_words_raises_when_file_missing(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError):
         load_words(missing_file)
+
+
+def test_load_words_keeps_lowercase_unicode_words(tmp_path: Path) -> None:
+    words_file = tmp_path / "words.txt"
+    words_file.write_text(
+        "\n".join(
+            [
+                "rivière",  # valid lowercase French
+                "машина",   # valid lowercase Russian
+                "Bonjour",  # uppercase starts -> filtered
+                "ПРИВЕТ",   # uppercase Russian -> filtered
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = load_words(words_file)
+
+    assert result == ["rivière", "машина"]

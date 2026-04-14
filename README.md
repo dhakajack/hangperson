@@ -4,8 +4,9 @@ A simple command-line Hangman game in Python.
 
 ## What it does
 
-- Picks a random word from `data/words.txt`
-- Uses only lowercase alphabetic words with at least 6 letters
+- Prompts for language at startup: English (`E`), French (`F`), or Russian (`R`)
+- Picks a random word from the selected language file
+- Uses only lowercase alphabetic words with at least 6 letters (Unicode supported)
 - Ignores proper nouns by filtering out non-lowercase entries
 - Shows hidden letters as hyphens (for example: `- - - - - -`)
 - Accepts single-letter guesses from prompt `>`
@@ -42,12 +43,12 @@ Simple TDD loop:
 
 ## Customize word list
 
-Edit `data/words.txt` and add one word per line.
+Edit language files in `data/` (`words_en.txt`, `words_fr.txt`, `words_ru.txt`) and add one word per line.
 
 Rules applied by the loader:
 
 - minimum length: 6
-- letters only (`a-z`)
+- letters only (`isalpha`, so accented and Cyrillic letters are allowed)
 - lowercase only
 
 ## Suggested Codex practice prompts in VS Code
