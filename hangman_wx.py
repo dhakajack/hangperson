@@ -31,6 +31,8 @@ class HangmanFrame(wx.Frame):
         self.words: list[str] = []
         self.max_errors = 0
         self.game: HangmanGame | None = None
+        self.session_rounds_played = 0
+        self.session_rounds_won = 0
 
         self._build_layout()
         self.Centre()
@@ -80,6 +82,7 @@ class HangmanFrame(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.status_label = wx.StaticText(panel, label="")
+        self.session_label = wx.StaticText(panel, label="")
         self.word_label = wx.StaticText(panel, label="Word: -")
         self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
         self.remaining_label = wx.StaticText(panel, label="Guesses remaining: 0")
@@ -108,6 +111,7 @@ class HangmanFrame(wx.Frame):
         input_row.Add(self.new_game_button, 0)
 
         sizer.Add(self.status_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        sizer.Add(self.session_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.word_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.remaining_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.output_ctrl, 1, wx.EXPAND | wx.ALL, 8)
@@ -170,6 +174,9 @@ class HangmanFrame(wx.Frame):
         self.status_label.SetLabel(
             f"Language: {self.language_name}    Difficulty: {self.difficulty_name}"
         )
+        self.session_rounds_played = 0
+        self.session_rounds_won = 0
+        self.session_label.SetLabel(self._format_session_stats())
         self.guessed_list.Clear()
         self.output_ctrl.Clear()
 
@@ -232,7 +239,10 @@ class HangmanFrame(wx.Frame):
         self.guess_input.SetFocus()
 
     def on_new_game(self, _: wx.CommandEvent) -> None:
-        self.start_new_round()
+        restarted = self.start_session()
+        if restarted:
+            return
+        self.append_output(str(self.ui["session_kept_current"]))
 
     def on_submit_guess(self, _: wx.CommandEvent) -> None:
         if self.game is None:
@@ -257,20 +267,24 @@ class HangmanFrame(wx.Frame):
         self._refresh_game_views()
 
         if self.game.is_won():
+            self._record_round_result(won=True)
             self.append_output(str(self.ui["win"]).format(word=self.game.word.upper()))
+            self.append_output(self._format_session_stats())
             self._set_guess_controls_enabled(False)
             self._prompt_replay_after_round()
             return
 
         if self.game.is_lost():
+            self._record_round_result(won=False)
             self.append_output(str(self.ui["loss_summary"]).format(max_errors=self.max_errors))
             self.append_output(str(self.ui["loss_word"]).format(word=self.game.word.upper()))
+            self.append_output(self._format_session_stats())
             self._set_guess_controls_enabled(False)
             self._prompt_replay_after_round()
 
     def _prompt_replay_after_round(self) -> None:
         # Keep replay UX close to the CLI concept while using native dialog buttons.
-        message = f"{self.ui['play_again_prompt']}\n\nUse Yes to play again, No to quit."
+        message = f"{self.ui['play_again_prompt']}\n\n{self.ui['play_again_dialog_hint']}"
         replay = wx.MessageBox(
             message,
             "Round Complete",
@@ -284,6 +298,22 @@ class HangmanFrame(wx.Frame):
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
         self.guess_input.Enable(enabled)
         self.submit_button.Enable(enabled)
+
+    def _record_round_result(self, won: bool) -> None:
+        self.session_rounds_played += 1
+        if won:
+            self.session_rounds_won += 1
+        self.session_label.SetLabel(self._format_session_stats())
+
+    def _format_session_stats(self) -> str:
+        percentage = 0.0
+        if self.session_rounds_played > 0:
+            percentage = (self.session_rounds_won * 100) / self.session_rounds_played
+        return str(self.ui["session_stats_format"]).format(
+            won=self.session_rounds_won,
+            played=self.session_rounds_played,
+            pct=f"{percentage:.0f}",
+        )
 
     def _refresh_game_views(self) -> None:
         if self.game is None:

@@ -26,5 +26,8 @@
     "1": "Facile",
     "2": "Moyen",
     "3": "Difficile"
-  }
+  },
+  "session_stats_format": "Parties gagnées : {won}/{played} ({pct} %).",
+  "session_kept_current": "Session en cours conservée (la configuration de nouvelle partie a été annulée).",
+  "play_again_dialog_hint": "Utilisez Oui pour rejouer, Non pour quitter."
 }

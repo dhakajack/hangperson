@@ -26,5 +26,8 @@
     "1": "Easy",
     "2": "Medium",
     "3": "Hard"
-  }
+  },
+  "session_stats_format": "Won {won}/{played} rounds ({pct}%).",
+  "session_kept_current": "Kept current session (new game setup was cancelled).",
+  "play_again_dialog_hint": "Use Yes to play again, No to quit."
 }
