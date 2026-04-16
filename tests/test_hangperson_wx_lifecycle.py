@@ -11,10 +11,14 @@ class _FakeFrame:
         self.ui = {"replay_prompt_label": "Replay?"}
         self.new_round_calls = 0
         self.destroy_calls = 0
-        self.last_message = ""
+        self.last_summary = ""
+        self.last_replay_label = ""
 
-    def _show_centered_round_complete_dialog(self, message: str) -> bool:
-        self.last_message = message
+    def _show_centered_round_complete_dialog(
+        self, round_summary: str, replay_label: str
+    ) -> bool:
+        self.last_summary = round_summary
+        self.last_replay_label = replay_label
         return self._replay
 
     def start_new_round(self) -> None:
@@ -29,7 +33,8 @@ def test_round_complete_yes_starts_new_round() -> None:
 
     HangpersonFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
 
-    assert frame.last_message == "Replay?"
+    assert frame.last_summary == ""
+    assert frame.last_replay_label == "Replay?"
     assert frame.new_round_calls == 1
     assert frame.destroy_calls == 0
 
@@ -39,6 +44,7 @@ def test_round_complete_no_destroys_frame() -> None:
 
     HangpersonFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
 
-    assert frame.last_message == "Replay?"
+    assert frame.last_summary == ""
+    assert frame.last_replay_label == "Replay?"
     assert frame.new_round_calls == 0
     assert frame.destroy_calls == 1

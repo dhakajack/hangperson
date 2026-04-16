@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import wx
+import wx.adv
 
 from hangperson import (
     DIFFICULTY_SETTINGS,
@@ -34,6 +35,10 @@ class HangpersonFrame(wx.Frame):
         self.game: HangpersonGame | None = None
         self.session_rounds_played = 0
         self.session_rounds_won = 0
+        self.info_hide_timer: wx.CallLater | None = None
+        self.guess_input_default_bg: wx.Colour | None = None
+        self.info_bar: wx.Window | None = None
+        self.info_fallback_label: wx.StaticText | None = None
 
         self._build_layout()
         self.Centre()
@@ -79,22 +84,18 @@ class HangpersonFrame(wx.Frame):
     def _build_bottom_panel(self, panel: wx.Panel) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        self.info_bar = self._create_info_widget(panel)
         self.status_label = wx.StaticText(panel, label="")
         self.session_label = wx.StaticText(panel, label="")
         self.word_label = wx.StaticText(panel, label="")
         self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-
-        self.output_ctrl = wx.TextCtrl(
-            panel,
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2,
-            size=(-1, 120),
-        )
 
         input_row = wx.BoxSizer(wx.HORIZONTAL)
         self.input_label = wx.StaticText(panel, label="")
         self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.guess_input.SetMaxLength(1)
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
+        self.guess_input_default_bg = self.guess_input.GetBackgroundColour()
 
         self.submit_button = wx.Button(panel, label="")
         self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit_guess)
@@ -107,10 +108,11 @@ class HangpersonFrame(wx.Frame):
         input_row.Add(self.submit_button, 0, wx.RIGHT, 8)
         input_row.Add(self.new_game_button, 0)
 
+        if self.info_bar is not None:
+            sizer.Add(self.info_bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.status_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.session_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.word_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.output_ctrl, 1, wx.EXPAND | wx.ALL, 8)
         sizer.Add(input_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         panel.SetSizer(sizer)
@@ -142,9 +144,6 @@ class HangpersonFrame(wx.Frame):
         dc.SetTextForeground(wx.Colour(40, 60, 95))
         dc.DrawText(title, 28, 28)
         dc.DrawText(subtitle, 28, 54)
-
-    def append_output(self, message: str) -> None:
-        self.output_ctrl.AppendText(f"{message}\n")
 
     def start_session(self) -> bool:
         language_key = self.prompt_language_key()
@@ -188,7 +187,7 @@ class HangpersonFrame(wx.Frame):
         self.session_rounds_won = 0
         self.session_label.SetLabel(self._format_session_stats())
         self.guessed_list.Clear()
-        self.output_ctrl.Clear()
+        self._dismiss_info()
 
         self.start_new_round()
         return True
@@ -228,7 +227,6 @@ class HangpersonFrame(wx.Frame):
             guessed_none=str(self.ui["guessed_none"]),
         )
 
-        self.append_output(str(self.ui["new_game"]))
         self._refresh_game_views()
         self.guess_input.SetFocus()
 
@@ -236,49 +234,51 @@ class HangpersonFrame(wx.Frame):
         restarted = self.start_session()
         if restarted:
             return
-        self.append_output(str(self.ui["session_kept_current"]))
+        self._show_info(str(self.ui["session_kept_current"]), wx.ICON_INFORMATION)
 
     def on_submit_guess(self, _: wx.CommandEvent) -> None:
         if self.game is None:
             return
 
         guess = self.guess_input.GetValue().strip().lower()
-        self.guess_input.Clear()
 
         if len(guess) != 1 or not guess.isalpha():
-            self.append_output(str(self.ui["letter_invalid"]))
+            self._show_info(str(self.ui["letter_invalid"]))
+            self._highlight_guess_input_invalid()
             return
 
         outcome = self.game.apply_guess(guess)
-
-        if outcome == "repeat":
-            self.append_output(str(self.ui["repeat_guess"]).format(letter=guess.upper()))
-        elif outcome == "correct":
-            self.append_output(str(self.ui["correct"]))
-        else:
-            self.append_output(str(self.ui["incorrect"]))
+        self.guess_input.Clear()
 
         self._refresh_game_views()
 
+        if outcome == "repeat":
+            self._show_info(str(self.ui["repeat_guess"]).format(letter=guess.upper()))
+            self._highlight_guess_input_invalid()
+            return
+
         if self.game.is_won():
             self._record_round_result(won=True)
-            self.append_output(str(self.ui["win"]).format(word=self.game.word.upper()))
-            self.append_output(self._format_session_stats())
+            round_summary = str(self.ui["win_short"])
             self._set_guess_controls_enabled(False)
-            self._prompt_replay_after_round()
+            self._prompt_replay_after_round(round_summary)
             return
 
         if self.game.is_lost():
             self._record_round_result(won=False)
-            self.append_output(str(self.ui["loss_summary"]).format(max_errors=self.max_errors))
-            self.append_output(str(self.ui["loss_word"]).format(word=self.game.word.upper()))
-            self.append_output(self._format_session_stats())
+            round_summary = " ".join(
+                [
+                    str(self.ui["loss_summary"]).format(max_errors=self.max_errors),
+                    str(self.ui["loss_word"]).format(word=self.game.word.upper()),
+                ]
+            )
             self._set_guess_controls_enabled(False)
-            self._prompt_replay_after_round()
+            self._prompt_replay_after_round(round_summary)
 
-    def _prompt_replay_after_round(self) -> None:
+    def _prompt_replay_after_round(self, round_summary: str | None = None) -> None:
         replay = self._show_centered_round_complete_dialog(
-            str(self.ui["replay_prompt_label"])
+            round_summary or "",
+            str(self.ui["replay_prompt_label"]),
         )
         if replay:
             self.start_new_round()
@@ -289,23 +289,30 @@ class HangpersonFrame(wx.Frame):
         self.guess_input.Enable(enabled)
         self.submit_button.Enable(enabled)
 
-    def _show_centered_round_complete_dialog(self, message: str) -> bool:
+    def _show_centered_round_complete_dialog(
+        self, round_summary: str, replay_label: str
+    ) -> bool:
         dialog = wx.Dialog(self, title=str(self.ui["round_complete_title"]))
         dialog.SetMinSize((420, 180))
 
         outer = wx.BoxSizer(wx.VERTICAL)
 
+        if round_summary.strip():
+            summary_text = wx.StaticText(dialog, label=round_summary, style=wx.ALIGN_CENTER)
+            summary_text.Wrap(380)
+            outer.Add(summary_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.LEFT | wx.RIGHT, 12)
+
         prompt_row = wx.BoxSizer(wx.HORIZONTAL)
         replay_icon = wx.StaticText(dialog, label="↻")
         replay_icon.SetFont(wx.Font(wx.FontInfo(18).Bold()))
         replay_icon.SetForegroundColour(wx.Colour(0, 95, 200))
-        text = wx.StaticText(dialog, label=message)
+        text = wx.StaticText(dialog, label=replay_label)
         text.SetFont(wx.Font(wx.FontInfo(12).Bold()))
 
         prompt_row.Add(replay_icon, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         prompt_row.Add(text, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        outer.Add(prompt_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 22)
+        outer.Add(prompt_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
         outer.AddStretchSpacer(1)
 
         buttons = wx.BoxSizer(wx.HORIZONTAL)
@@ -449,6 +456,58 @@ class HangpersonFrame(wx.Frame):
         self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
         self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
         self.new_game_button.SetMinSize((44, 34))
+
+    def _show_info(
+        self, message: str, icon_flag: int = wx.ICON_WARNING, timeout_ms: int = 2200
+    ) -> None:
+        if self.info_bar is None:
+            return
+        show_message = getattr(self.info_bar, "ShowMessage", None)
+        if callable(show_message):
+            show_message(message, icon_flag)
+        elif self.info_fallback_label is not None:
+            self.info_fallback_label.SetLabel(message)
+            self.info_fallback_label.Show()
+            self.info_fallback_label.GetParent().Layout()
+        if self.info_hide_timer is not None and self.info_hide_timer.IsRunning():
+            self.info_hide_timer.Stop()
+        self.info_hide_timer = wx.CallLater(timeout_ms, self._dismiss_info)
+
+    def _highlight_guess_input_invalid(self) -> None:
+        self.guess_input.SetBackgroundColour(wx.Colour(255, 228, 228))
+        self.guess_input.Refresh()
+        self.guess_input.SetFocus()
+        self.guess_input.SelectAll()
+
+        def reset_input_background() -> None:
+            if self.guess_input_default_bg is not None:
+                self.guess_input.SetBackgroundColour(self.guess_input_default_bg)
+                self.guess_input.Refresh()
+
+        wx.CallLater(450, reset_input_background)
+
+    def _create_info_widget(self, parent: wx.Window) -> wx.Window:
+        info_bar_cls = getattr(wx.adv, "InfoBar", None) or getattr(wx, "InfoBar", None)
+        if info_bar_cls is not None:
+            return info_bar_cls(parent)
+
+        # Fallback for wx builds that do not expose InfoBar.
+        self.info_fallback_label = wx.StaticText(parent, label="")
+        self.info_fallback_label.SetBackgroundColour(wx.Colour(255, 245, 207))
+        self.info_fallback_label.SetForegroundColour(wx.Colour(120, 80, 0))
+        self.info_fallback_label.Hide()
+        return self.info_fallback_label
+
+    def _dismiss_info(self) -> None:
+        if self.info_bar is None:
+            return
+        dismiss = getattr(self.info_bar, "Dismiss", None)
+        if callable(dismiss):
+            dismiss()
+            return
+        if self.info_fallback_label is not None:
+            self.info_fallback_label.Hide()
+            self.info_fallback_label.GetParent().Layout()
 
     def _format_guessed_slots(self) -> list[str]:
         if self.game is None:

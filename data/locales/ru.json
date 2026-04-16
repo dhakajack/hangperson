@@ -43,5 +43,6 @@
   "play_again_yes_button": "Да",
   "play_again_no_button": "Нет",
   "replay_prompt_label": "Переиграть?",
-  "difficulty_prompt_gui": "Выберите сложность"
+  "difficulty_prompt_gui": "Выберите сложность",
+  "win_short": "Вы выиграли!"
 }

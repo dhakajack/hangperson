@@ -43,5 +43,6 @@
   "play_again_yes_button": "Oui",
   "play_again_no_button": "Non",
   "replay_prompt_label": "Rejouer ?",
-  "difficulty_prompt_gui": "Choisissez la difficulté"
+  "difficulty_prompt_gui": "Choisissez la difficulté",
+  "win_short": "Vous gagnez !"
 }
