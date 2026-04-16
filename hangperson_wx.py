@@ -14,6 +14,7 @@ from hangperson import (
     HangpersonGame,
     choose_word,
     filter_words_for_difficulty,
+    is_letter_for_language,
     load_locale,
     load_words,
 )
@@ -28,6 +29,7 @@ class HangpersonFrame(wx.Frame):
         self.SetMinSize((780, 500))
 
         self.ui: dict[str, object] = {}
+        self.language_key = ""
         self.language_name = ""
         self.difficulty_name = ""
         self.words: list[str] = []
@@ -35,8 +37,9 @@ class HangpersonFrame(wx.Frame):
         self.game: HangpersonGame | None = None
         self.session_rounds_played = 0
         self.session_rounds_won = 0
+        self.script_warning_shown = False
+        self.round_input_enabled = True
         self.info_hide_timer: wx.CallLater | None = None
-        self.guess_input_default_bg: wx.Colour | None = None
         self.info_bar: wx.Window | None = None
         self.info_fallback_label: wx.StaticText | None = None
 
@@ -89,13 +92,13 @@ class HangpersonFrame(wx.Frame):
         self.session_label = wx.StaticText(panel, label="")
         self.word_label = wx.StaticText(panel, label="")
         self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
+        self.input_hint_label = wx.StaticText(panel, label="")
 
         input_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.input_label = wx.StaticText(panel, label="")
-        self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        self.guess_input.SetMaxLength(1)
+        self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_CENTER)
+        self.guess_input.SetMaxLength(5)
+        self.guess_input.SetMinSize((70, -1))
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
-        self.guess_input_default_bg = self.guess_input.GetBackgroundColour()
 
         self.submit_button = wx.Button(panel, label="")
         self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit_guess)
@@ -103,9 +106,9 @@ class HangpersonFrame(wx.Frame):
         self.new_game_button = wx.Button(panel, label="")
         self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
 
-        input_row.Add(self.input_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-        input_row.Add(self.guess_input, 1, wx.RIGHT, 8)
+        input_row.Add(self.guess_input, 0, wx.RIGHT, 8)
         input_row.Add(self.submit_button, 0, wx.RIGHT, 8)
+        input_row.AddStretchSpacer(1)
         input_row.Add(self.new_game_button, 0)
 
         if self.info_bar is not None:
@@ -113,6 +116,7 @@ class HangpersonFrame(wx.Frame):
         sizer.Add(self.status_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.session_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.word_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        sizer.Add(self.input_hint_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(input_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         panel.SetSizer(sizer)
@@ -150,6 +154,7 @@ class HangpersonFrame(wx.Frame):
         if language_key is None:
             return False
 
+        self.language_key = language_key
         settings = LANGUAGE_SETTINGS[language_key]
         self.language_name = str(settings["name"])
 
@@ -228,6 +233,9 @@ class HangpersonFrame(wx.Frame):
         )
 
         self._refresh_game_views()
+        self.script_warning_shown = False
+        self.round_input_enabled = True
+        self.guess_input.Clear()
         self.guess_input.SetFocus()
 
     def on_new_game(self, _: wx.CommandEvent) -> None:
@@ -237,24 +245,36 @@ class HangpersonFrame(wx.Frame):
         self._show_info(str(self.ui["session_kept_current"]), wx.ICON_INFORMATION)
 
     def on_submit_guess(self, _: wx.CommandEvent) -> None:
-        if self.game is None:
+        if not self.round_input_enabled or self.game is None:
             return
 
         guess = self.guess_input.GetValue().strip().lower()
-
         if len(guess) != 1 or not guess.isalpha():
             self._show_info(str(self.ui["letter_invalid"]))
-            self._highlight_guess_input_invalid()
+            self.guess_input.SetFocus()
+            self.guess_input.SelectAll()
+            return
+
+        self.guess_input.Clear()
+        if not is_letter_for_language(guess, self.language_key):
+            # Soft warning only: accept the guess to avoid false negatives on WSL key layouts.
+            if not self.script_warning_shown:
+                self._show_info(str(self.ui["letter_wrong_script"]), wx.ICON_INFORMATION)
+                self.script_warning_shown = True
+        self._process_guess(guess)
+        if self.round_input_enabled:
+            self.guess_input.SetFocus()
+
+    def _process_guess(self, guess: str) -> None:
+        if self.game is None:
             return
 
         outcome = self.game.apply_guess(guess)
-        self.guess_input.Clear()
 
         self._refresh_game_views()
 
         if outcome == "repeat":
             self._show_info(str(self.ui["repeat_guess"]).format(letter=guess.upper()))
-            self._highlight_guess_input_invalid()
             return
 
         if self.game.is_won():
@@ -286,6 +306,7 @@ class HangpersonFrame(wx.Frame):
         self.Destroy()
 
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
+        self.round_input_enabled = enabled
         self.guess_input.Enable(enabled)
         self.submit_button.Enable(enabled)
 
@@ -444,7 +465,9 @@ class HangpersonFrame(wx.Frame):
 
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
-        self.input_label.SetLabel(str(self.ui["guess_input_label"]))
+        self.input_hint_label.SetLabel(str(self.ui["keyboard_input_hint"]))
+        self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
+
         self.submit_button.SetLabel("↵")
         self.submit_button.SetForegroundColour(wx.Colour(0, 0, 0))
         self.submit_button.SetToolTip(str(self.ui["submit_button"]))
@@ -472,19 +495,6 @@ class HangpersonFrame(wx.Frame):
         if self.info_hide_timer is not None and self.info_hide_timer.IsRunning():
             self.info_hide_timer.Stop()
         self.info_hide_timer = wx.CallLater(timeout_ms, self._dismiss_info)
-
-    def _highlight_guess_input_invalid(self) -> None:
-        self.guess_input.SetBackgroundColour(wx.Colour(255, 228, 228))
-        self.guess_input.Refresh()
-        self.guess_input.SetFocus()
-        self.guess_input.SelectAll()
-
-        def reset_input_background() -> None:
-            if self.guess_input_default_bg is not None:
-                self.guess_input.SetBackgroundColour(self.guess_input_default_bg)
-                self.guess_input.Refresh()
-
-        wx.CallLater(450, reset_input_background)
 
     def _create_info_widget(self, parent: wx.Window) -> wx.Window:
         info_bar_cls = getattr(wx.adv, "InfoBar", None) or getattr(wx, "InfoBar", None)

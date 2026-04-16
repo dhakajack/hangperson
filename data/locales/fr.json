@@ -8,7 +8,7 @@
   "guesses_remaining_label": "Essais restants",
   "guessed_label": "Lettres proposées",
   "guessed_none": "(aucune)",
-  "letter_invalid": "Veuillez saisir une seule lettre.",
+  "letter_invalid": "Veuillez saisir uniquement des lettres.",
   "repeat_guess": "Vous avez déjà proposé '{letter}'. Essayez une nouvelle lettre.",
   "correct": "Correct !",
   "incorrect": "Incorrect.",
@@ -44,5 +44,7 @@
   "play_again_no_button": "Non",
   "replay_prompt_label": "Rejouer ?",
   "difficulty_prompt_gui": "Choisissez la difficulté",
-  "win_short": "Vous gagnez !"
+  "win_short": "Vous gagnez !",
+  "keyboard_input_hint": "Saisissez une lettre, puis appuyez sur Entrée.",
+  "letter_wrong_script": "Veuillez utiliser uniquement les lettres de l'alphabet de la langue sélectionnée."
 }

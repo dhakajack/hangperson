@@ -1,4 +1,4 @@
-from hangperson import HangpersonGame, resolve_language_choice
+from hangperson import HangpersonGame, is_letter_for_language, resolve_language_choice
 
 
 def test_hangperson_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
@@ -40,3 +40,13 @@ def test_resolve_language_choice_accepts_latin_and_cyrillic_for_russian() -> Non
     assert resolve_language_choice("Р") == "r"
     assert resolve_language_choice("p") == "r"
     assert resolve_language_choice("P") == "r"
+
+
+def test_is_letter_for_language_respects_selected_script() -> None:
+    assert is_letter_for_language("e", "e") is True
+    assert is_letter_for_language("é", "f") is True
+    assert is_letter_for_language("д", "r") is True
+
+    assert is_letter_for_language("д", "e") is False
+    assert is_letter_for_language("e", "r") is False
+    assert is_letter_for_language("7", "e") is False

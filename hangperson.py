@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import random
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -102,11 +103,27 @@ def format_progress(progress: list[str]) -> str:
     return " ".join(progress)
 
 
-def prompt_letter(ui: dict[str, object]) -> str:
+def is_letter_for_language(letter: str, language_key: str) -> bool:
+    """Return True if the letter belongs to the selected language script."""
+    if len(letter) != 1 or not letter.isalpha():
+        return False
+
+    unicode_name = unicodedata.name(letter, "")
+    if language_key in {"e", "f"}:
+        return "LATIN" in unicode_name
+    if language_key == "r":
+        return "CYRILLIC" in unicode_name
+    return True
+
+
+def prompt_letter(ui: dict[str, object], language_key: str) -> str:
     while True:
         guess = input("> ").strip().lower()
         if len(guess) != 1 or not guess.isalpha():
             print(str(ui["letter_invalid"]))
+            continue
+        if not is_letter_for_language(guess, language_key):
+            print(str(ui["letter_wrong_script"]))
             continue
         return guess
 
@@ -115,14 +132,14 @@ def resolve_language_choice(choice: str) -> str | None:
     return LANGUAGE_ALIASES.get(choice.strip().casefold())
 
 
-def prompt_language() -> dict[str, str | Path]:
+def prompt_language() -> tuple[str, dict[str, str | Path]]:
     while True:
         choice = input(
             "Choose language: English (E), Français (F), Русский (Р): "
         )
         language_key = resolve_language_choice(choice)
         if language_key:
-            return LANGUAGE_SETTINGS[language_key]
+            return language_key, LANGUAGE_SETTINGS[language_key]
         print("Please enter E, F, or Р.")
 
 
@@ -188,7 +205,9 @@ class HangpersonGame:
         return self.errors >= self.max_errors
 
 
-def run_round(words: list[str], max_errors: int, ui: dict[str, object]) -> bool:
+def run_round(
+    words: list[str], max_errors: int, ui: dict[str, object], language_key: str
+) -> bool:
     game = HangpersonGame(
         word=choose_word(words),
         max_errors=max_errors,
@@ -202,7 +221,7 @@ def run_round(words: list[str], max_errors: int, ui: dict[str, object]) -> bool:
         print(f"{ui['guesses_remaining_label']}: {game.guesses_remaining}")
         print(f"{ui['guessed_label']}: {game.guessed_display}")
 
-        guess = prompt_letter(ui)
+        guess = prompt_letter(ui, language_key)
         outcome = game.apply_guess(guess)
 
         if outcome == "repeat":
@@ -238,7 +257,7 @@ def main() -> None:
     print("Hangperson (CLI)")
     print("Guess letters to reveal the hidden word.")
 
-    language = prompt_language()
+    language_key, language = prompt_language()
     language_name = str(language["name"])
     words_file = Path(language["words_file"])
     locale_file = Path(language["locale_file"])
@@ -272,7 +291,7 @@ def main() -> None:
     )
 
     while True:
-        run_round(words, max_errors, ui)
+        run_round(words, max_errors, ui, language_key)
         if not play_again(ui):
             print(str(ui["thanks"]))
             break
