@@ -1,0 +1,30 @@
+{
+  "welcome_title": "Pendu (CLI)",
+  "welcome_subtitle": "Devinez des lettres pour révéler le mot caché.",
+  "difficulty_prompt": "Réglez la difficulté de 1 (facile) à 3 (difficile) : ",
+  "difficulty_invalid": "Veuillez saisir 1, 2 ou 3.",
+  "new_game": "Nouvelle partie commencée !",
+  "word_label": "Mot",
+  "guesses_remaining_label": "Essais restants",
+  "guessed_label": "Lettres proposées",
+  "guessed_none": "(aucune)",
+  "letter_invalid": "Veuillez saisir une seule lettre.",
+  "repeat_guess": "Vous avez déjà proposé '{letter}'. Essayez une nouvelle lettre.",
+  "correct": "Correct !",
+  "incorrect": "Incorrect.",
+  "win": "Vous gagnez ! Le mot était {word}.",
+  "loss_summary": "Partie perdue. Vous avez utilisé {max_errors} essais incorrects.",
+  "loss_word": "Le mot était {word}.",
+  "play_again_prompt": "Saisissez 1 pour rejouer, 0 pour quitter : ",
+  "play_again_invalid": "Veuillez saisir 1 pour rejouer ou 0 pour quitter.",
+  "thanks": "Merci d'avoir joué.",
+  "language_selected": "Langue sélectionnée : {language}.",
+  "difficulty_selected": "Difficulté sélectionnée : {difficulty} ({max_errors} erreurs max).",
+  "start_error": "Impossible de démarrer la partie : {error}",
+  "no_words_error": "Impossible de démarrer la partie : aucun mot ne correspond à la langue et à la difficulté sélectionnées.",
+  "difficulty_names": {
+    "1": "Facile",
+    "2": "Moyen",
+    "3": "Difficile"
+  }
+}

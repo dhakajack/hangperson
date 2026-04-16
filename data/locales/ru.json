@@ -1,0 +1,30 @@
+{
+  "welcome_title": "Виселица (CLI)",
+  "welcome_subtitle": "Угадывайте буквы, чтобы открыть скрытое слово.",
+  "difficulty_prompt": "Выберите уровень сложности от 1 (легко) до 3 (сложно): ",
+  "difficulty_invalid": "Введите 1, 2 или 3.",
+  "new_game": "Новая игра началась!",
+  "word_label": "Слово",
+  "guesses_remaining_label": "Осталось попыток",
+  "guessed_label": "Угаданные буквы",
+  "guessed_none": "(нет)",
+  "letter_invalid": "Введите одну букву.",
+  "repeat_guess": "Вы уже предлагали '{letter}'. Попробуйте другую букву.",
+  "correct": "Верно!",
+  "incorrect": "Неверно.",
+  "win": "Вы выиграли! Слово было: {word}.",
+  "loss_summary": "Игра окончена. Вы использовали {max_errors} неверных попыток.",
+  "loss_word": "Слово было: {word}.",
+  "play_again_prompt": "Введите 1, чтобы сыграть снова, 0, чтобы выйти: ",
+  "play_again_invalid": "Введите 1, чтобы сыграть снова, или 0, чтобы выйти.",
+  "thanks": "Спасибо за игру.",
+  "language_selected": "Выбран язык: {language}.",
+  "difficulty_selected": "Выбрана сложность: {difficulty} (макс. ошибок: {max_errors}).",
+  "start_error": "Не удалось начать игру: {error}",
+  "no_words_error": "Не удалось начать игру: нет слов для выбранных языка и сложности.",
+  "difficulty_names": {
+    "1": "Легко",
+    "2": "Средне",
+    "3": "Сложно"
+  }
+}

@@ -1,4 +1,4 @@
-from hangman import HangmanGame
+from hangman import HangmanGame, resolve_language_choice
 
 
 def test_hangman_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
@@ -31,3 +31,12 @@ def test_hangman_game_win_and_loss_states() -> None:
     loss_game.apply_guess("y")
     assert loss_game.is_lost() is True
     assert loss_game.is_won() is False
+
+
+def test_resolve_language_choice_accepts_latin_and_cyrillic_for_russian() -> None:
+    assert resolve_language_choice("r") == "r"
+    assert resolve_language_choice("R") == "r"
+    assert resolve_language_choice("р") == "r"
+    assert resolve_language_choice("Р") == "r"
+    assert resolve_language_choice("p") == "r"
+    assert resolve_language_choice("P") == "r"

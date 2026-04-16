@@ -1,0 +1,30 @@
+{
+  "welcome_title": "Hangman (CLI)",
+  "welcome_subtitle": "Guess letters to reveal the hidden word.",
+  "difficulty_prompt": "Set difficulty level from 1 (easy) to 3 (hard): ",
+  "difficulty_invalid": "Please enter 1, 2, or 3.",
+  "new_game": "New game started!",
+  "word_label": "Word",
+  "guesses_remaining_label": "Guesses remaining",
+  "guessed_label": "Guessed",
+  "guessed_none": "(none)",
+  "letter_invalid": "Please enter a single letter.",
+  "repeat_guess": "You already guessed '{letter}'. Try a new letter.",
+  "correct": "Correct!",
+  "incorrect": "Incorrect.",
+  "win": "You win! The word was {word}.",
+  "loss_summary": "Game over. You used {max_errors} incorrect guesses.",
+  "loss_word": "The word was {word}.",
+  "play_again_prompt": "Type 1 to play again, 0 to quit: ",
+  "play_again_invalid": "Please enter 1 to play again or 0 to quit.",
+  "thanks": "Thanks for playing.",
+  "language_selected": "Language selected: {language}.",
+  "difficulty_selected": "Difficulty selected: {difficulty} ({max_errors} max errors).",
+  "start_error": "Could not start game: {error}",
+  "no_words_error": "Could not start game: no words match your selected language and difficulty.",
+  "difficulty_names": {
+    "1": "Easy",
+    "2": "Medium",
+    "3": "Hard"
+  }
+}

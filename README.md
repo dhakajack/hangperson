@@ -4,8 +4,10 @@ A simple command-line Hangman game in Python.
 
 ## What it does
 
-- Prompts for language at startup: English (`E`), French (`F`), or Russian (`R`)
-- Prompts for difficulty after language: Easy (`E`), Medium (`M`), Hard (`H`)
+- Shows startup language chooser in English: `English (E), Français (F), Русский (Р)`
+- Accepts either Latin `P/p` or Cyrillic `Р/р` for Russian selection
+- Switches all in-game prompts/state text to the selected language
+- Prompts for difficulty after language using numeric choices: `1` (Easy), `2` (Medium), `3` (Hard) with localized labels
 - Picks a random word from the selected language file
 - Filters words by difficulty:
   - Easy: 6-7 letters (10 max errors)
@@ -17,7 +19,7 @@ A simple command-line Hangman game in Python.
 - Accepts single-letter guesses from prompt `>`
 - Reveals correct guesses in UPPERCASE
 - Ends game after the difficulty-specific incorrect guess limit
-- Prompts to play again or quit
+- Prompts with numeric replay controls: `1` to play again, `0` to quit
 
 ## Run
 
@@ -50,15 +52,23 @@ Simple TDD loop:
 
 Edit language files in `data/` (`words_en.txt`, `words_fr.txt`, `words_ru.txt`) and add one word per line.
 
+## Add or edit UI languages
+
+Localization strings live in `data/locales/`:
+
+- `en.json`
+- `fr.json`
+- `ru.json`
+
+To add a language, add:
+
+1. A words file in `data/`
+2. A locale JSON file in `data/locales/`
+3. A `LANGUAGE_SETTINGS` entry in `hangman.py`
+4. Selection aliases in `LANGUAGE_ALIASES` (if needed)
+
 Rules applied by the loader:
 
 - minimum length: 6
 - letters only (`isalpha`, so accented and Cyrillic letters are allowed)
 - lowercase only
-
-## Suggested Codex practice prompts in VS Code
-
-1. "Add ASCII hangman art that changes with each error."
-2. "Track and display guessed letters in alphabetical order."
-3. "Add a hint command (`?`) that reveals one unrevealed letter and costs 2 errors."
-4. "Refactor into modules and add unit tests for word loading and guess handling."

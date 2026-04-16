@@ -3,19 +3,62 @@
 
 from __future__ import annotations
 
+import json
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-LANGUAGE_WORD_FILES: dict[str, tuple[str, Path]] = {
-    "e": ("English", Path("data/words_en.txt")),
-    "f": ("French", Path("data/words_fr.txt")),
-    "r": ("Russian", Path("data/words_ru.txt")),
+LANGUAGE_SETTINGS: dict[str, dict[str, str | Path]] = {
+    "e": {
+        "name": "English",
+        "words_file": Path("data/words_en.txt"),
+        "locale_file": Path("data/locales/en.json"),
+    },
+    "f": {
+        "name": "Français",
+        "words_file": Path("data/words_fr.txt"),
+        "locale_file": Path("data/locales/fr.json"),
+    },
+    "r": {
+        "name": "Русский",
+        "words_file": Path("data/words_ru.txt"),
+        "locale_file": Path("data/locales/ru.json"),
+    },
 }
-DIFFICULTY_SETTINGS: dict[str, tuple[str, int, int | None, int]] = {
-    "e": ("Easy", 6, 7, 10),
-    "m": ("Medium", 8, 9, 8),
-    "h": ("Hard", 10, None, 6),
+
+LANGUAGE_ALIASES: dict[str, str] = {
+    "e": "e",
+    "english": "e",
+    "en": "e",
+    "f": "f",
+    "fr": "f",
+    "francais": "f",
+    "français": "f",
+    "french": "f",
+    "r": "r",
+    "р": "r",
+    "p": "r",
+    "ru": "r",
+    "russian": "r",
+    "русский": "r",
+}
+
+DIFFICULTY_SETTINGS: dict[str, tuple[int, int | None, int]] = {
+    "1": (6, 7, 10),
+    "2": (8, 9, 8),
+    "3": (10, None, 6),
+}
+
+DIFFICULTY_ALIASES: dict[str, str] = {
+    "1": "1",
+    "easy": "1",
+    "e": "1",
+    "2": "2",
+    "medium": "2",
+    "m": "2",
+    "3": "3",
+    "hard": "3",
+    "h": "3",
 }
 
 
@@ -38,6 +81,17 @@ def load_words(path: Path) -> list[str]:
     return list(dict.fromkeys(words))
 
 
+def load_locale(path: Path) -> dict[str, object]:
+    """Load localized interface strings from a JSON file."""
+    if not path.exists():
+        raise FileNotFoundError(f"Locale file not found: {path}")
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid locale data in {path}")
+    return data
+
+
 def choose_word(words: list[str]) -> str:
     if not words:
         raise ValueError("No valid words were found. Add lowercase words of length >= 6.")
@@ -48,29 +102,39 @@ def format_progress(progress: list[str]) -> str:
     return " ".join(progress)
 
 
-def prompt_letter() -> str:
+def prompt_letter(ui: dict[str, object]) -> str:
     while True:
         guess = input("> ").strip().lower()
         if len(guess) != 1 or not guess.isalpha():
-            print("Please enter a single letter.")
+            print(str(ui["letter_invalid"]))
             continue
         return guess
 
 
-def prompt_language() -> tuple[str, Path]:
-    while True:
-        choice = input("Choose language: English (E), French (F), Russian (R): ").strip().lower()
-        if choice in LANGUAGE_WORD_FILES:
-            return LANGUAGE_WORD_FILES[choice]
-        print("Please enter E, F, or R.")
+def resolve_language_choice(choice: str) -> str | None:
+    return LANGUAGE_ALIASES.get(choice.strip().casefold())
 
 
-def prompt_difficulty() -> tuple[str, int, int | None, int]:
+def prompt_language() -> dict[str, str | Path]:
     while True:
-        choice = input("Choose difficulty: Easy (E), Medium (M), Hard (H): ").strip().lower()
+        choice = input(
+            "Choose language: English (E), Français (F), Русский (Р): "
+        )
+        language_key = resolve_language_choice(choice)
+        if language_key:
+            return LANGUAGE_SETTINGS[language_key]
+        print("Please enter E, F, or Р.")
+
+
+def prompt_difficulty(ui: dict[str, object]) -> tuple[str, int, int | None, int]:
+    while True:
+        raw_choice = input(str(ui["difficulty_prompt"])).strip().lower()
+        choice = DIFFICULTY_ALIASES.get(raw_choice)
         if choice in DIFFICULTY_SETTINGS:
-            return DIFFICULTY_SETTINGS[choice]
-        print("Please enter E, M, or H.")
+            min_length, max_length, max_errors = DIFFICULTY_SETTINGS[choice]
+            difficulty_name = str(ui["difficulty_names"][choice])
+            return difficulty_name, min_length, max_length, max_errors
+        print(str(ui["difficulty_invalid"]))
 
 
 def filter_words_for_difficulty(
@@ -85,6 +149,7 @@ def filter_words_for_difficulty(
 class HangmanGame:
     word: str
     max_errors: int
+    guessed_none: str = "(none)"
     progress: list[str] = field(init=False)
     guessed_letters: set[str] = field(default_factory=set)
     errors: int = 0
@@ -99,7 +164,7 @@ class HangmanGame:
     @property
     def guessed_display(self) -> str:
         guessed = ", ".join(sorted(letter.upper() for letter in self.guessed_letters))
-        return guessed if guessed else "(none)"
+        return guessed if guessed else self.guessed_none
 
     def apply_guess(self, guess: str) -> str:
         if guess in self.guessed_letters:
@@ -123,75 +188,93 @@ class HangmanGame:
         return self.errors >= self.max_errors
 
 
-def run_round(words: list[str], max_errors: int) -> bool:
-    game = HangmanGame(word=choose_word(words), max_errors=max_errors)
+def run_round(words: list[str], max_errors: int, ui: dict[str, object]) -> bool:
+    game = HangmanGame(
+        word=choose_word(words),
+        max_errors=max_errors,
+        guessed_none=str(ui["guessed_none"]),
+    )
 
-    print("\nNew game started!")
+    print(f"\n{ui['new_game']}")
 
     while True:
-        print(f"\nWord: {format_progress(game.progress)}")
-        print(f"Guesses remaining: {game.guesses_remaining}")
-        print(f"Guessed: {game.guessed_display}")
+        print(f"\n{ui['word_label']}: {format_progress(game.progress)}")
+        print(f"{ui['guesses_remaining_label']}: {game.guesses_remaining}")
+        print(f"{ui['guessed_label']}: {game.guessed_display}")
 
-        guess = prompt_letter()
+        guess = prompt_letter(ui)
         outcome = game.apply_guess(guess)
 
         if outcome == "repeat":
-            print(f"You already guessed '{guess.upper()}'. Try a new letter.")
+            print(str(ui["repeat_guess"]).format(letter=guess.upper()))
             continue
 
         if outcome == "correct":
-            print("Correct!")
+            print(str(ui["correct"]))
         else:
-            print("Incorrect.")
+            print(str(ui["incorrect"]))
 
         if game.is_won():
-            print(f"\nYou win! The word was {game.word.upper()}.")
+            print(f"\n{str(ui['win']).format(word=game.word.upper())}")
             return True
 
         if game.is_lost():
-            print(f"\nGame over. You used {max_errors} incorrect guesses.")
-            print(f"The word was {game.word.upper()}.")
+            print(f"\n{str(ui['loss_summary']).format(max_errors=max_errors)}")
+            print(str(ui["loss_word"]).format(word=game.word.upper()))
             return False
 
 
-def play_again() -> bool:
+def play_again(ui: dict[str, object]) -> bool:
     while True:
-        answer = input("Play again or quit? (P/Q): ").strip().lower()
-        if answer in {"p", "play", "y", "yes"}:
+        answer = input(str(ui["play_again_prompt"])).strip().lower()
+        if answer in {"1", "p", "play", "y", "yes"}:
             return True
-        if answer in {"q", "quit", "n", "no"}:
+        if answer in {"0", "q", "quit", "n", "no"}:
             return False
-        print("Please enter P to play again or Q to quit.")
+        print(str(ui["play_again_invalid"]))
 
 
 def main() -> None:
     print("Hangman (CLI)")
     print("Guess letters to reveal the hidden word.")
 
-    language_name, words_file = prompt_language()
-    difficulty_name, min_length, max_length, max_errors = prompt_difficulty()
+    language = prompt_language()
+    language_name = str(language["name"])
+    words_file = Path(language["words_file"])
+    locale_file = Path(language["locale_file"])
+
+    try:
+        ui = load_locale(locale_file)
+    except Exception as exc:
+        # Fall back to English for startup errors.
+        print(f"Could not start game: {exc}")
+        return
+
+    difficulty_name, min_length, max_length, max_errors = prompt_difficulty(ui)
 
     try:
         words = load_words(words_file)
         words = filter_words_for_difficulty(words, min_length, max_length)
     except Exception as exc:
-        print(f"Could not start game: {exc}")
+        print(str(ui["start_error"]).format(error=exc))
         return
 
     if not words:
-        print(
-            "Could not start game: no words match your selected language and difficulty."
-        )
+        print(str(ui["no_words_error"]))
         return
 
-    print(f"Language selected: {language_name}.")
-    print(f"Difficulty selected: {difficulty_name} ({max_errors} max errors).")
+    print(str(ui["language_selected"]).format(language=language_name))
+    print(
+        str(ui["difficulty_selected"]).format(
+            difficulty=difficulty_name,
+            max_errors=max_errors,
+        )
+    )
 
     while True:
-        run_round(words, max_errors)
-        if not play_again():
-            print("Thanks for playing.")
+        run_round(words, max_errors, ui)
+        if not play_again(ui):
+            print(str(ui["thanks"]))
             break
 
 
