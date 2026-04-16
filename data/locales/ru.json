@@ -29,5 +29,18 @@
   },
   "session_stats_format": "Выиграно раундов: {won}/{played} ({pct}%).",
   "session_kept_current": "Текущая сессия сохранена (настройка новой игры отменена).",
-  "play_again_dialog_hint": "Нажмите «Да», чтобы сыграть снова, или «Нет», чтобы выйти."
+  "play_again_dialog_hint": "Нажмите «Да», чтобы сыграть снова, или «Нет», чтобы выйти.",
+  "window_title": "Виселица (wxPython)",
+  "guess_input_label": "Буква",
+  "submit_button": "Проверить",
+  "new_game_button": "Новая игра",
+  "difficulty_dialog_title": "Сложность",
+  "round_complete_title": "Раунд завершен",
+  "error_title": "Ошибка",
+  "drawing_area_title": "Область рисунка виселицы",
+  "drawing_area_placeholder": "(место для виселицы и персонажа)",
+  "drawing_area_errors_format": "Ошибки: {errors} / {max_errors}",
+  "play_again_yes_button": "Да",
+  "play_again_no_button": "Нет",
+  "replay_prompt_label": "Переиграть?"
 }

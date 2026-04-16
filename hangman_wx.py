@@ -64,12 +64,12 @@ class HangmanFrame(wx.Frame):
         right_panel.SetBackgroundColour(wx.Colour(255, 245, 220))
         right_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        guessed_title = wx.StaticText(right_panel, label="Guessed Letters")
-        guessed_title.SetFont(wx.Font(wx.FontInfo(11).Bold()))
+        self.guessed_title = wx.StaticText(right_panel, label="")
+        self.guessed_title.SetFont(wx.Font(wx.FontInfo(11).Bold()))
 
         self.guessed_list = wx.ListBox(right_panel, style=wx.LB_SINGLE)
 
-        right_sizer.Add(guessed_title, 0, wx.ALL, 10)
+        right_sizer.Add(self.guessed_title, 0, wx.ALL, 10)
         right_sizer.Add(self.guessed_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         right_panel.SetSizer(right_sizer)
 
@@ -83,9 +83,9 @@ class HangmanFrame(wx.Frame):
 
         self.status_label = wx.StaticText(panel, label="")
         self.session_label = wx.StaticText(panel, label="")
-        self.word_label = wx.StaticText(panel, label="Word: -")
+        self.word_label = wx.StaticText(panel, label="")
         self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.remaining_label = wx.StaticText(panel, label="Guesses remaining: 0")
+        self.remaining_label = wx.StaticText(panel, label="")
 
         self.output_ctrl = wx.TextCtrl(
             panel,
@@ -94,18 +94,18 @@ class HangmanFrame(wx.Frame):
         )
 
         input_row = wx.BoxSizer(wx.HORIZONTAL)
-        input_label = wx.StaticText(panel, label="Guess")
+        self.input_label = wx.StaticText(panel, label="")
         self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         self.guess_input.SetMaxLength(1)
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
 
-        self.submit_button = wx.Button(panel, label="Submit")
+        self.submit_button = wx.Button(panel, label="")
         self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit_guess)
 
-        self.new_game_button = wx.Button(panel, label="New Game")
+        self.new_game_button = wx.Button(panel, label="")
         self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
 
-        input_row.Add(input_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        input_row.Add(self.input_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         input_row.Add(self.guess_input, 1, wx.RIGHT, 8)
         input_row.Add(self.submit_button, 0, wx.RIGHT, 8)
         input_row.Add(self.new_game_button, 0)
@@ -128,10 +128,20 @@ class HangmanFrame(wx.Frame):
         dc.SetBrush(wx.Brush(wx.Colour(240, 245, 255)))
         dc.DrawRectangle(12, 12, max(w - 24, 20), max(h - 24, 20))
 
-        title = "Hangman Drawing Area"
-        subtitle = "(placeholder for gallows + character)"
+        title = str(self.ui.get("drawing_area_title", "Hangman Drawing Area"))
+        subtitle = str(
+            self.ui.get(
+                "drawing_area_placeholder",
+                "(placeholder for gallows + character)",
+            )
+        )
         if self.game is not None:
-            subtitle = f"Errors: {self.game.errors} / {self.game.max_errors}"
+            subtitle = str(
+                self.ui.get(
+                    "drawing_area_errors_format",
+                    "Errors: {errors} / {max_errors}",
+                )
+            ).format(errors=self.game.errors, max_errors=self.game.max_errors)
 
         dc.SetTextForeground(wx.Colour(40, 60, 95))
         dc.DrawText(title, 28, 28)
@@ -155,6 +165,8 @@ class HangmanFrame(wx.Frame):
             wx.MessageBox(f"Could not start game: {exc}", "Error", wx.OK | wx.ICON_ERROR)
             return False
 
+        self._apply_localized_labels()
+
         difficulty_choice = self.prompt_difficulty_choice()
         if difficulty_choice is None:
             return False
@@ -166,14 +178,16 @@ class HangmanFrame(wx.Frame):
         if not self.words:
             wx.MessageBox(
                 str(self.ui["no_words_error"]),
-                "Error",
+                str(self.ui["error_title"]),
                 wx.OK | wx.ICON_ERROR,
             )
             return False
 
-        self.status_label.SetLabel(
-            f"Language: {self.language_name}    Difficulty: {self.difficulty_name}"
+        language_status = str(self.ui["language_selected"]).format(language=self.language_name)
+        difficulty_status = str(self.ui["difficulty_selected"]).format(
+            difficulty=self.difficulty_name, max_errors=self.max_errors
         )
+        self.status_label.SetLabel(f"{language_status}    {difficulty_status}")
         self.session_rounds_played = 0
         self.session_rounds_won = 0
         self.session_label.SetLabel(self._format_session_stats())
@@ -190,20 +204,10 @@ class HangmanFrame(wx.Frame):
             f"Русский (Р)",
         ]
         language_keys = ["e", "f", "r"]
-
-        dialog = wx.SingleChoiceDialog(
-            self,
-            "Choose language",
-            "Language",
-            choices,
-        )
-        try:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            selection = dialog.GetSelection()
-            return language_keys[selection]
-        finally:
-            dialog.Destroy()
+        selection = self._show_choice_dialog("Language", choices, min_size=(320, 240))
+        if selection is None:
+            return None
+        return language_keys[selection]
 
     def prompt_difficulty_choice(self) -> str | None:
         choices = [
@@ -212,20 +216,14 @@ class HangmanFrame(wx.Frame):
             f"3 - {self.ui['difficulty_names']['3']}",
         ]
         difficulty_keys = ["1", "2", "3"]
-
-        dialog = wx.SingleChoiceDialog(
-            self,
-            str(self.ui["difficulty_prompt"]),
-            "Difficulty",
+        selection = self._show_choice_dialog(
+            str(self.ui["difficulty_dialog_title"]),
             choices,
+            prompt=str(self.ui["difficulty_prompt"]),
         )
-        try:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            selection = dialog.GetSelection()
-            return difficulty_keys[selection]
-        finally:
-            dialog.Destroy()
+        if selection is None:
+            return None
+        return difficulty_keys[selection]
 
     def start_new_round(self) -> None:
         self.game = HangmanGame(
@@ -283,21 +281,135 @@ class HangmanFrame(wx.Frame):
             self._prompt_replay_after_round()
 
     def _prompt_replay_after_round(self) -> None:
-        # Keep replay UX close to the CLI concept while using native dialog buttons.
-        message = f"{self.ui['play_again_prompt']}\n\n{self.ui['play_again_dialog_hint']}"
-        replay = wx.MessageBox(
-            message,
-            "Round Complete",
-            wx.YES_NO | wx.ICON_QUESTION,
+        replay = self._show_centered_round_complete_dialog(
+            str(self.ui["replay_prompt_label"])
         )
-        if replay == wx.YES:
+        if replay:
             self.start_new_round()
             return
-        self.Close()
+        self.Destroy()
 
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
         self.guess_input.Enable(enabled)
         self.submit_button.Enable(enabled)
+
+    def _show_centered_round_complete_dialog(self, message: str) -> bool:
+        dialog = wx.Dialog(self, title=str(self.ui["round_complete_title"]))
+        dialog.SetMinSize((420, 180))
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        prompt_row = wx.BoxSizer(wx.HORIZONTAL)
+        replay_icon = wx.StaticText(dialog, label="↻")
+        replay_icon.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+        replay_icon.SetForegroundColour(wx.Colour(0, 95, 200))
+        text = wx.StaticText(dialog, label=message)
+        text.SetFont(wx.Font(wx.FontInfo(12).Bold()))
+
+        prompt_row.Add(replay_icon, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        prompt_row.Add(text, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        outer.Add(prompt_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 22)
+        outer.AddStretchSpacer(1)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        no_button = wx.BitmapButton(
+            dialog,
+            wx.ID_NO,
+            wx.ArtProvider.GetBitmap(wx.ART_CROSS_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        yes_button = wx.BitmapButton(
+            dialog,
+            wx.ID_YES,
+            wx.ArtProvider.GetBitmap(wx.ART_TICK_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        no_button.SetToolTip(str(self.ui["play_again_no_button"]))
+        yes_button.SetToolTip(str(self.ui["play_again_yes_button"]))
+        buttons.Add(no_button, 0, wx.RIGHT, 8)
+        buttons.Add(yes_button, 0)
+
+        def on_yes(_: wx.CommandEvent) -> None:
+            dialog.EndModal(wx.ID_YES)
+
+        def on_no(_: wx.CommandEvent) -> None:
+            dialog.EndModal(wx.ID_NO)
+
+        yes_button.Bind(wx.EVT_BUTTON, on_yes)
+        no_button.Bind(wx.EVT_BUTTON, on_no)
+        dialog.SetEscapeId(wx.ID_NO)
+        dialog.SetDefaultItem(yes_button)
+        yes_button.SetFocus()
+
+        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+
+        dialog.SetSizerAndFit(outer)
+        try:
+            return dialog.ShowModal() == wx.ID_YES
+        finally:
+            dialog.Destroy()
+
+    def _show_choice_dialog(
+        self,
+        title: str,
+        choices: list[str],
+        prompt: str = "",
+        min_size: tuple[int, int] = (360, 260),
+    ) -> int | None:
+        dialog = wx.Dialog(self, title=title)
+        dialog.SetMinSize(min_size)
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        if prompt.strip():
+            prompt_text = wx.StaticText(dialog, label=prompt)
+            outer.Add(prompt_text, 0, wx.ALL, 10)
+
+        list_box = wx.ListBox(dialog, choices=choices)
+        if choices:
+            list_box.SetSelection(0)
+        outer.Add(list_box, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        cancel_button = wx.BitmapButton(
+            dialog,
+            wx.ID_CANCEL,
+            wx.ArtProvider.GetBitmap(wx.ART_CROSS_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        confirm_button = wx.BitmapButton(
+            dialog,
+            wx.ID_OK,
+            wx.ArtProvider.GetBitmap(wx.ART_TICK_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        cancel_button.SetToolTip("Cancel")
+        confirm_button.SetToolTip("Confirm")
+        buttons.Add(cancel_button, 0, wx.RIGHT, 10)
+        buttons.Add(confirm_button, 0)
+        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+
+        def on_confirm(_: wx.CommandEvent) -> None:
+            if list_box.GetSelection() == wx.NOT_FOUND:
+                return
+            dialog.EndModal(wx.ID_OK)
+
+        def on_cancel(_: wx.CommandEvent) -> None:
+            dialog.EndModal(wx.ID_CANCEL)
+
+        def on_double_click(_: wx.CommandEvent) -> None:
+            on_confirm(_)
+
+        confirm_button.Bind(wx.EVT_BUTTON, on_confirm)
+        cancel_button.Bind(wx.EVT_BUTTON, on_cancel)
+        list_box.Bind(wx.EVT_LISTBOX_DCLICK, on_double_click)
+        dialog.SetEscapeId(wx.ID_CANCEL)
+        dialog.SetDefaultItem(confirm_button)
+        list_box.SetFocus()
+
+        dialog.SetSizerAndFit(outer)
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return None
+            return list_box.GetSelection()
+        finally:
+            dialog.Destroy()
 
     def _record_round_result(self, won: bool) -> None:
         self.session_rounds_played += 1
@@ -330,6 +442,22 @@ class HangmanFrame(wx.Frame):
 
         self._set_guess_controls_enabled(True)
         self.draw_panel.Refresh()
+
+    def _apply_localized_labels(self) -> None:
+        self.SetTitle(str(self.ui["window_title"]))
+        self.guessed_title.SetLabel(str(self.ui["guessed_label"]))
+        self.input_label.SetLabel(str(self.ui["guess_input_label"]))
+        self.submit_button.SetLabel("↵")
+        self.submit_button.SetForegroundColour(wx.Colour(0, 0, 0))
+        self.submit_button.SetToolTip(str(self.ui["submit_button"]))
+        self.submit_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
+        self.submit_button.SetMinSize((44, 34))
+
+        self.new_game_button.SetLabel("↻")
+        self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
+        self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
+        self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
+        self.new_game_button.SetMinSize((44, 34))
 
 
 def main() -> None:

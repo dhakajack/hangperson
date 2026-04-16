@@ -29,5 +29,18 @@
   },
   "session_stats_format": "Won {won}/{played} rounds ({pct}%).",
   "session_kept_current": "Kept current session (new game setup was cancelled).",
-  "play_again_dialog_hint": "Use Yes to play again, No to quit."
+  "play_again_dialog_hint": "Use Yes to play again, No to quit.",
+  "window_title": "Hangman (wxPython)",
+  "guess_input_label": "Guess",
+  "submit_button": "Submit",
+  "new_game_button": "New Game",
+  "difficulty_dialog_title": "Difficulty",
+  "round_complete_title": "Round Complete",
+  "error_title": "Error",
+  "drawing_area_title": "Hangman Drawing Area",
+  "drawing_area_placeholder": "(placeholder for gallows + character)",
+  "drawing_area_errors_format": "Errors: {errors} / {max_errors}",
+  "play_again_yes_button": "Yes",
+  "play_again_no_button": "No",
+  "replay_prompt_label": "Replay?"
 }

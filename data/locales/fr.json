@@ -29,5 +29,18 @@
   },
   "session_stats_format": "Parties gagnées : {won}/{played} ({pct} %).",
   "session_kept_current": "Session en cours conservée (la configuration de nouvelle partie a été annulée).",
-  "play_again_dialog_hint": "Utilisez Oui pour rejouer, Non pour quitter."
+  "play_again_dialog_hint": "Utilisez Oui pour rejouer, Non pour quitter.",
+  "window_title": "Pendu (wxPython)",
+  "guess_input_label": "Lettre",
+  "submit_button": "Valider",
+  "new_game_button": "Nouvelle partie",
+  "difficulty_dialog_title": "Difficulté",
+  "round_complete_title": "Manche terminée",
+  "error_title": "Erreur",
+  "drawing_area_title": "Zone de dessin du pendu",
+  "drawing_area_placeholder": "(emplacement pour la potence et le personnage)",
+  "drawing_area_errors_format": "Erreurs : {errors} / {max_errors}",
+  "play_again_yes_button": "Oui",
+  "play_again_no_button": "Non",
+  "replay_prompt_label": "Rejouer ?"
 }
