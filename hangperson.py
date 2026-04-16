@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple CLI Hangman game."""
+"""Simple CLI Hangperson game."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ def filter_words_for_difficulty(
 
 
 @dataclass
-class HangmanGame:
+class HangpersonGame:
     word: str
     max_errors: int
     guessed_none: str = "(none)"
@@ -189,7 +189,7 @@ class HangmanGame:
 
 
 def run_round(words: list[str], max_errors: int, ui: dict[str, object]) -> bool:
-    game = HangmanGame(
+    game = HangpersonGame(
         word=choose_word(words),
         max_errors=max_errors,
         guessed_none=str(ui["guessed_none"]),
@@ -235,7 +235,7 @@ def play_again(ui: dict[str, object]) -> bool:
 
 
 def main() -> None:
-    print("Hangman (CLI)")
+    print("Hangperson (CLI)")
     print("Guess letters to reveal the hidden word.")
 
     language = prompt_language()
@@ -280,3 +280,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# Backward compatibility for existing imports/tests.
+HangmanGame = HangpersonGame

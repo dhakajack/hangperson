@@ -1,6 +1,6 @@
-# Hangman CLI (Codex Starter Project)
+# Hangperson CLI (Codex Starter Project)
 
-A simple command-line Hangman game in Python.
+A simple command-line Hangperson game in Python.
 
 ## What it does
 
@@ -24,7 +24,7 @@ A simple command-line Hangman game in Python.
 ## Run
 
 ```bash
-python3 hangman.py
+python3 hangperson.py
 ```
 
 ## Run (wxPython GUI Skeleton)
@@ -38,7 +38,7 @@ python3 -m pip install wxPython
 Run the GUI:
 
 ```bash
-python3 hangman_wx.py
+python3 hangperson_wx.py
 ```
 
 The GUI currently uses tinted layout regions for development:
@@ -83,7 +83,7 @@ To add a language, add:
 
 1. A words file in `data/`
 2. A locale JSON file in `data/locales/`
-3. A `LANGUAGE_SETTINGS` entry in `hangman.py`
+3. A `LANGUAGE_SETTINGS` entry in `hangperson.py`
 4. Selection aliases in `LANGUAGE_ALIASES` (if needed)
 
 Rules applied by the loader:

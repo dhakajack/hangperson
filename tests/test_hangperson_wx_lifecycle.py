@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("wx")
 
-from hangman_wx import HangmanFrame
+from hangperson_wx import HangpersonFrame
 
 
 class _FakeFrame:
@@ -27,7 +27,7 @@ class _FakeFrame:
 def test_round_complete_yes_starts_new_round() -> None:
     frame = _FakeFrame(replay=True)
 
-    HangmanFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
+    HangpersonFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
 
     assert frame.last_message == "Replay?"
     assert frame.new_round_calls == 1
@@ -37,7 +37,7 @@ def test_round_complete_yes_starts_new_round() -> None:
 def test_round_complete_no_destroys_frame() -> None:
     frame = _FakeFrame(replay=False)
 
-    HangmanFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
+    HangpersonFrame._prompt_replay_after_round(frame)  # type: ignore[arg-type]
 
     assert frame.last_message == "Replay?"
     assert frame.new_round_calls == 0

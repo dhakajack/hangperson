@@ -42,5 +42,6 @@
   "drawing_area_errors_format": "Ошибки: {errors} / {max_errors}",
   "play_again_yes_button": "Да",
   "play_again_no_button": "Нет",
-  "replay_prompt_label": "Переиграть?"
+  "replay_prompt_label": "Переиграть?",
+  "difficulty_prompt_gui": "Выберите сложность"
 }

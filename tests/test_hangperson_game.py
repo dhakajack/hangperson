@@ -1,8 +1,8 @@
-from hangman import HangmanGame, resolve_language_choice
+from hangperson import HangpersonGame, resolve_language_choice
 
 
-def test_hangman_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
-    game = HangmanGame(word="planet", max_errors=3)
+def test_hangperson_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
+    game = HangpersonGame(word="planet", max_errors=3)
 
     assert game.guesses_remaining == 3
     assert game.guessed_display == "(none)"
@@ -19,14 +19,14 @@ def test_hangman_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
     assert game.errors == 1
 
 
-def test_hangman_game_win_and_loss_states() -> None:
-    win_game = HangmanGame(word="aba", max_errors=3)
+def test_hangperson_game_win_and_loss_states() -> None:
+    win_game = HangpersonGame(word="aba", max_errors=3)
     win_game.apply_guess("a")
     win_game.apply_guess("b")
     assert win_game.is_won() is True
     assert win_game.is_lost() is False
 
-    loss_game = HangmanGame(word="planet", max_errors=2)
+    loss_game = HangpersonGame(word="planet", max_errors=2)
     loss_game.apply_guess("x")
     loss_game.apply_guess("y")
     assert loss_game.is_lost() is True

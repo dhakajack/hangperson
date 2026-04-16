@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wxPython GUI Hangman skeleton with the existing game engine."""
+"""wxPython GUI Hangperson skeleton with the existing game engine."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from pathlib import Path
 
 import wx
 
-from hangman import (
+from hangperson import (
     DIFFICULTY_SETTINGS,
     LANGUAGE_SETTINGS,
-    HangmanGame,
+    HangpersonGame,
     choose_word,
     filter_words_for_difficulty,
     load_locale,
@@ -18,11 +18,11 @@ from hangman import (
 )
 
 
-class HangmanFrame(wx.Frame):
-    """Main GUI frame for the Hangman game."""
+class HangpersonFrame(wx.Frame):
+    """Main GUI frame for the Hangperson game."""
 
     def __init__(self) -> None:
-        super().__init__(None, title="Hangman (wxPython)", size=(900, 560))
+        super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
         self.SetMinSize((780, 500))
 
         self.ui: dict[str, object] = {}
@@ -30,7 +30,7 @@ class HangmanFrame(wx.Frame):
         self.difficulty_name = ""
         self.words: list[str] = []
         self.max_errors = 0
-        self.game: HangmanGame | None = None
+        self.game: HangpersonGame | None = None
         self.session_rounds_played = 0
         self.session_rounds_won = 0
 
@@ -128,7 +128,7 @@ class HangmanFrame(wx.Frame):
         dc.SetBrush(wx.Brush(wx.Colour(240, 245, 255)))
         dc.DrawRectangle(12, 12, max(w - 24, 20), max(h - 24, 20))
 
-        title = str(self.ui.get("drawing_area_title", "Hangman Drawing Area"))
+        title = str(self.ui.get("drawing_area_title", "Hangperson Drawing Area"))
         subtitle = str(
             self.ui.get(
                 "drawing_area_placeholder",
@@ -199,9 +199,9 @@ class HangmanFrame(wx.Frame):
 
     def prompt_language_key(self) -> str | None:
         choices = [
-            f"English (E)",
-            f"Français (F)",
-            f"Русский (Р)",
+            "English",
+            "Français",
+            "Русский",
         ]
         language_keys = ["e", "f", "r"]
         selection = self._show_choice_dialog("Language", choices, min_size=(320, 240))
@@ -211,22 +211,22 @@ class HangmanFrame(wx.Frame):
 
     def prompt_difficulty_choice(self) -> str | None:
         choices = [
-            f"1 - {self.ui['difficulty_names']['1']}",
-            f"2 - {self.ui['difficulty_names']['2']}",
-            f"3 - {self.ui['difficulty_names']['3']}",
+            str(self.ui["difficulty_names"]["1"]),
+            str(self.ui["difficulty_names"]["2"]),
+            str(self.ui["difficulty_names"]["3"]),
         ]
         difficulty_keys = ["1", "2", "3"]
         selection = self._show_choice_dialog(
             str(self.ui["difficulty_dialog_title"]),
             choices,
-            prompt=str(self.ui["difficulty_prompt"]),
+            prompt=str(self.ui["difficulty_prompt_gui"]),
         )
         if selection is None:
             return None
         return difficulty_keys[selection]
 
     def start_new_round(self) -> None:
-        self.game = HangmanGame(
+        self.game = HangpersonGame(
             word=choose_word(self.words),
             max_errors=self.max_errors,
             guessed_none=str(self.ui["guessed_none"]),
@@ -462,10 +462,14 @@ class HangmanFrame(wx.Frame):
 
 def main() -> None:
     app = wx.App(False)
-    frame = HangmanFrame()
+    frame = HangpersonFrame()
     frame.Show()
     app.MainLoop()
 
 
 if __name__ == "__main__":
     main()
+
+
+# Backward compatibility for existing imports/tests.
+HangmanFrame = HangpersonFrame

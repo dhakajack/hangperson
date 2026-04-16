@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from hangman import filter_words_for_difficulty, load_words
+from hangperson import filter_words_for_difficulty, load_words
 
 
 def test_load_words_filters_and_deduplicates(tmp_path: Path) -> None:

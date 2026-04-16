@@ -1,5 +1,5 @@
 {
-  "welcome_title": "Hangman (CLI)",
+  "welcome_title": "Hangperson (CLI)",
   "welcome_subtitle": "Guess letters to reveal the hidden word.",
   "difficulty_prompt": "Set difficulty level from 1 (easy) to 3 (hard): ",
   "difficulty_invalid": "Please enter 1, 2, or 3.",
@@ -30,17 +30,18 @@
   "session_stats_format": "Won {won}/{played} rounds ({pct}%).",
   "session_kept_current": "Kept current session (new game setup was cancelled).",
   "play_again_dialog_hint": "Use Yes to play again, No to quit.",
-  "window_title": "Hangman (wxPython)",
+  "window_title": "Hangperson (wxPython)",
   "guess_input_label": "Guess",
   "submit_button": "Submit",
   "new_game_button": "New Game",
   "difficulty_dialog_title": "Difficulty",
   "round_complete_title": "Round Complete",
   "error_title": "Error",
-  "drawing_area_title": "Hangman Drawing Area",
+  "drawing_area_title": "Hangperson Drawing Area",
   "drawing_area_placeholder": "(placeholder for gallows + character)",
   "drawing_area_errors_format": "Errors: {errors} / {max_errors}",
   "play_again_yes_button": "Yes",
   "play_again_no_button": "No",
-  "replay_prompt_label": "Replay?"
+  "replay_prompt_label": "Replay?",
+  "difficulty_prompt_gui": "Choose difficulty"
 }
