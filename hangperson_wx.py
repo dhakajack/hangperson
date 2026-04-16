@@ -20,6 +20,7 @@ from hangperson import (
 
 class HangpersonFrame(wx.Frame):
     """Main GUI frame for the Hangperson game."""
+    GUESS_SLOT_SYMBOL = "▯"
 
     def __init__(self) -> None:
         super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
@@ -61,20 +62,17 @@ class HangpersonFrame(wx.Frame):
         left_panel.SetSizer(left_sizer)
 
         right_panel = wx.Panel(root)
-        right_panel.SetBackgroundColour(wx.Colour(255, 245, 220))
         right_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.guessed_title = wx.StaticText(right_panel, label="")
-        self.guessed_title.SetFont(wx.Font(wx.FontInfo(11).Bold()))
-
         self.guessed_list = wx.ListBox(right_panel, style=wx.LB_SINGLE)
+        self.guessed_list.SetMinSize((70, -1))
+        self.guessed_list.SetFont(wx.Font(wx.FontInfo(13).Bold()))
 
-        right_sizer.Add(self.guessed_title, 0, wx.ALL, 10)
-        right_sizer.Add(self.guessed_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        right_sizer.Add(self.guessed_list, 1, wx.EXPAND | wx.ALL, 10)
         right_panel.SetSizer(right_sizer)
 
-        root_sizer.Add(left_panel, 7, wx.EXPAND)
-        root_sizer.Add(right_panel, 3, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
+        root_sizer.Add(left_panel, 8, wx.EXPAND)
+        root_sizer.Add(right_panel, 2, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
 
         root.SetSizer(root_sizer)
 
@@ -85,7 +83,6 @@ class HangpersonFrame(wx.Frame):
         self.session_label = wx.StaticText(panel, label="")
         self.word_label = wx.StaticText(panel, label="")
         self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.remaining_label = wx.StaticText(panel, label="")
 
         self.output_ctrl = wx.TextCtrl(
             panel,
@@ -113,7 +110,6 @@ class HangpersonFrame(wx.Frame):
         sizer.Add(self.status_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.session_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.word_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.remaining_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(self.output_ctrl, 1, wx.EXPAND | wx.ALL, 8)
         sizer.Add(input_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -433,19 +429,14 @@ class HangpersonFrame(wx.Frame):
 
         word_text = " ".join(self.game.progress)
         self.word_label.SetLabel(f"{self.ui['word_label']}: {word_text}")
-        self.remaining_label.SetLabel(
-            f"{self.ui['guesses_remaining_label']}: {self.game.guesses_remaining}"
-        )
 
-        sorted_letters = sorted(letter.upper() for letter in self.game.guessed_letters)
-        self.guessed_list.Set(sorted_letters)
+        self.guessed_list.Set(self._format_guessed_slots())
 
         self._set_guess_controls_enabled(True)
         self.draw_panel.Refresh()
 
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
-        self.guessed_title.SetLabel(str(self.ui["guessed_label"]))
         self.input_label.SetLabel(str(self.ui["guess_input_label"]))
         self.submit_button.SetLabel("↵")
         self.submit_button.SetForegroundColour(wx.Colour(0, 0, 0))
@@ -458,6 +449,18 @@ class HangpersonFrame(wx.Frame):
         self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
         self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
         self.new_game_button.SetMinSize((44, 34))
+
+    def _format_guessed_slots(self) -> list[str]:
+        if self.game is None:
+            return []
+
+        incorrect_letters = sorted(
+            letter.upper()
+            for letter in self.game.guessed_letters
+            if letter not in self.game.word
+        )
+        remaining_slots = max(self.max_errors - len(incorrect_letters), 0)
+        return incorrect_letters + [self.GUESS_SLOT_SYMBOL] * remaining_slots
 
 
 def main() -> None:
