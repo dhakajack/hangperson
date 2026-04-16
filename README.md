@@ -27,6 +27,25 @@ A simple command-line Hangman game in Python.
 python3 hangman.py
 ```
 
+## Run (wxPython GUI Skeleton)
+
+Install wxPython (once):
+
+```bash
+python3 -m pip install wxPython
+```
+
+Run the GUI:
+
+```bash
+python3 hangman_wx.py
+```
+
+The GUI currently uses tinted layout regions for development:
+- left-top: drawing placeholder area
+- left-bottom: game prompts/output and guess input
+- right: guessed letters list (one letter per line)
+
 ## Test (pytest)
 
 Install dev dependencies:
