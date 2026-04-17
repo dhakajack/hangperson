@@ -113,22 +113,43 @@ class HangpersonFrame(wx.Frame):
         score_row.Add(self.trophy_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         score_row.Add(self.score_fraction_label, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        self.language_badge = wx.StaticText(panel, label="")
-        self.language_badge.SetFont(wx.Font(wx.FontInfo(28)))
-        self.language_badge.SetMinSize((0, 44))
-        self.language_badge.Wrap(120)
+        self.language_badge_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
+        self.language_badge_panel.SetBackgroundColour(wx.Colour(247, 242, 213))
+        self.language_badge_panel.SetMinSize((0, 44))
+        language_badge_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.language_badge = wx.StaticText(
+            self.language_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
+        )
+        self.language_badge.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+        self.language_badge.SetForegroundColour(wx.Colour(22, 38, 53))
+        language_badge_sizer.AddStretchSpacer(1)
+        language_badge_sizer.Add(self.language_badge, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        language_badge_sizer.AddStretchSpacer(1)
+        self.language_badge_panel.SetSizer(language_badge_sizer)
 
-        self.difficulty_badge = wx.StaticText(panel, label="")
-        self.difficulty_badge.SetFont(wx.Font(wx.FontInfo(30)))
-        self.difficulty_badge.SetMinSize((0, 58))
+        self.difficulty_badge_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
+        self.difficulty_badge_panel.SetBackgroundColour(wx.Colour(247, 242, 213))
+        self.difficulty_badge_panel.SetMinSize((0, 58))
+        difficulty_badge_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.difficulty_badge = wx.StaticText(
+            self.difficulty_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
+        )
+        self.difficulty_badge.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+        self.difficulty_badge.SetForegroundColour(wx.Colour(22, 38, 53))
+        difficulty_badge_sizer.AddStretchSpacer(1)
+        difficulty_badge_sizer.Add(self.difficulty_badge, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        difficulty_badge_sizer.AddStretchSpacer(1)
+        self.difficulty_badge_panel.SetSizer(difficulty_badge_sizer)
 
         self.new_game_button = wx.Button(panel, label="")
         self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
         self.status_panel.SetMinSize((170, -1))
 
         sizer.Add(score_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
-        sizer.Add(self.language_badge, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
-        sizer.Add(self.difficulty_badge, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
+        sizer.Add(self.language_badge_panel, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 12)
+        sizer.Add(
+            self.difficulty_badge_panel, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 12
+        )
         sizer.AddStretchSpacer(1)
         sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 12)
 
@@ -641,8 +662,8 @@ class HangpersonFrame(wx.Frame):
         self.score_fraction_label.SetLabel(
             f"{self.session_rounds_won}\n—\n{self.session_rounds_played}"
         )
-        self.language_badge.SetLabel(self._language_flag(self.language_key))
-        self.difficulty_badge.SetLabel(self._difficulty_icon(self.difficulty_key))
+        self.language_badge.SetLabel(self._language_badge_text(self.language_key))
+        self.difficulty_badge.SetLabel(self._difficulty_badge_text(self.difficulty_key))
         self.status_panel.Layout()
 
     def _language_flag(self, key: str) -> str:
@@ -658,6 +679,20 @@ class HangpersonFrame(wx.Frame):
             "2": "🎓",
             "3": "🧙",
         }.get(key, "❓")
+
+    def _language_badge_text(self, key: str) -> str:
+        return {
+            "e": "EN",
+            "f": "FR",
+            "r": "RU",
+        }.get(key, "--")
+
+    def _difficulty_badge_text(self, key: str) -> str:
+        return {
+            "1": "E",
+            "2": "M",
+            "3": "H",
+        }.get(key, "?")
 
 
 def main() -> None:
