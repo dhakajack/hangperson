@@ -31,6 +31,7 @@ class HangpersonFrame(wx.Frame):
         self.ui: dict[str, object] = {}
         self.language_key = ""
         self.language_name = ""
+        self.difficulty_key = ""
         self.difficulty_name = ""
         self.words: list[str] = []
         self.max_errors = 0
@@ -40,8 +41,9 @@ class HangpersonFrame(wx.Frame):
         self.script_warning_shown = False
         self.round_input_enabled = True
         self.info_hide_timer: wx.CallLater | None = None
-        self.info_bar: wx.Window | None = None
-        self.info_fallback_label: wx.StaticText | None = None
+        self.message_label: wx.StaticText | None = None
+        self.word_slot_cells: list[wx.StaticText] = []
+        self.bad_guess_cells: list[wx.StaticText] = []
 
         self._build_layout()
         self.Centre()
@@ -54,70 +56,127 @@ class HangpersonFrame(wx.Frame):
         root = wx.Panel(self)
         root_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        left_panel = wx.Panel(root)
-        left_sizer = wx.BoxSizer(wx.VERTICAL)
+        main_panel = wx.Panel(root)
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.draw_panel = wx.Panel(left_panel)
+        top_panel = wx.Panel(main_panel)
+        top_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.draw_panel = wx.Panel(top_panel)
         self.draw_panel.SetBackgroundColour(wx.Colour(220, 235, 255))
         self.draw_panel.Bind(wx.EVT_PAINT, self.on_paint_draw_panel)
 
-        self.bottom_panel = wx.Panel(left_panel)
+        self.status_panel = wx.Panel(top_panel)
+        self.status_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self._build_status_panel(self.status_panel)
+
+        top_sizer.Add(self.draw_panel, 5, wx.EXPAND | wx.ALL, 8)
+        top_sizer.Add(self.status_panel, 1, wx.EXPAND | wx.TOP | wx.BOTTOM | wx.RIGHT, 8)
+        top_panel.SetSizer(top_sizer)
+
+        self.bottom_panel = wx.Panel(main_panel)
         self.bottom_panel.SetBackgroundColour(wx.Colour(225, 245, 225))
         self._build_bottom_panel(self.bottom_panel)
 
-        left_sizer.Add(self.draw_panel, 3, wx.EXPAND | wx.ALL, 8)
-        left_sizer.Add(self.bottom_panel, 2, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        left_panel.SetSizer(left_sizer)
+        main_sizer.Add(top_panel, 5, wx.EXPAND)
+        main_sizer.Add(self.bottom_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        main_panel.SetSizer(main_sizer)
 
-        right_panel = wx.Panel(root)
-        right_sizer = wx.BoxSizer(wx.VERTICAL)
+        bad_guess_panel = wx.Panel(root)
+        bad_guess_panel.SetMinSize((64, -1))
+        bad_guess_panel.SetBackgroundColour(wx.Colour(245, 248, 250))
+        bad_guess_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.guessed_list = wx.ListBox(right_panel, style=wx.LB_SINGLE)
-        self.guessed_list.SetMinSize((70, -1))
-        self.guessed_list.SetFont(wx.Font(wx.FontInfo(13).Bold()))
+        self.bad_guess_slots_panel = wx.Panel(bad_guess_panel)
+        self.bad_guess_slots_panel.SetBackgroundColour(wx.Colour(250, 250, 250))
+        self.bad_guess_slots_panel.SetMinSize((48, -1))
+        slots_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.bad_guess_slots_panel.SetSizer(slots_sizer)
 
-        right_sizer.Add(self.guessed_list, 1, wx.EXPAND | wx.ALL, 10)
-        right_panel.SetSizer(right_sizer)
+        bad_guess_sizer.Add(self.bad_guess_slots_panel, 1, wx.EXPAND | wx.ALL, 8)
+        bad_guess_panel.SetSizer(bad_guess_sizer)
 
-        root_sizer.Add(left_panel, 8, wx.EXPAND)
-        root_sizer.Add(right_panel, 2, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
+        root_sizer.Add(main_panel, 1, wx.EXPAND)
+        root_sizer.Add(bad_guess_panel, 0, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
 
         root.SetSizer(root_sizer)
+
+    def _build_status_panel(self, panel: wx.Panel) -> None:
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        score_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.trophy_label = wx.StaticText(panel, label="🏆")
+        self.trophy_label.SetFont(wx.Font(wx.FontInfo(34)))
+        self.score_fraction_label = wx.StaticText(panel, label="0\n—\n0", style=wx.ALIGN_CENTER)
+        self.score_fraction_label.SetFont(wx.Font(wx.FontInfo(15).Bold()))
+
+        score_row.Add(self.trophy_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        score_row.Add(self.score_fraction_label, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        self.language_badge = wx.StaticText(panel, label="")
+        self.language_badge.SetFont(wx.Font(wx.FontInfo(28)))
+        self.language_badge.SetMinSize((0, 44))
+        self.language_badge.Wrap(120)
+
+        self.difficulty_badge = wx.StaticText(panel, label="")
+        self.difficulty_badge.SetFont(wx.Font(wx.FontInfo(30)))
+        self.difficulty_badge.SetMinSize((0, 58))
+
+        self.new_game_button = wx.Button(panel, label="")
+        self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
+        self.status_panel.SetMinSize((170, -1))
+
+        sizer.Add(score_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
+        sizer.Add(self.language_badge, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
+        sizer.Add(self.difficulty_badge, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
+        sizer.AddStretchSpacer(1)
+        sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 12)
+
+        panel.SetSizer(sizer)
 
     def _build_bottom_panel(self, panel: wx.Panel) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.info_bar = self._create_info_widget(panel)
-        self.status_label = wx.StaticText(panel, label="")
-        self.session_label = wx.StaticText(panel, label="")
-        self.word_label = wx.StaticText(panel, label="")
-        self.word_label.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.input_hint_label = wx.StaticText(panel, label="")
+        self.message_label = wx.StaticText(panel, label="", style=wx.ALIGN_LEFT)
+        self.message_label.SetMinSize((-1, 26))
+        self.message_label.SetBackgroundColour(wx.Colour(255, 245, 207))
+        self.message_label.SetForegroundColour(wx.Colour(120, 80, 0))
 
-        input_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_CENTER)
+        left_row = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.word_slots_panel = wx.Panel(panel)
+        self.word_slots_panel.SetBackgroundColour(wx.Colour(225, 245, 225))
+        self.word_slots_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.word_slots_panel.SetSizer(self.word_slots_sizer)
+
+        self.bottom_left_balancer = wx.Window(panel)
+        self.bottom_left_balancer.SetMinSize((170, -1))
+
+        self.bottom_input_column = wx.Panel(panel)
+        self.bottom_input_column.SetMinSize((170, -1))
+        self.bottom_input_column.SetBackgroundColour(wx.Colour(225, 245, 225))
+        self.bottom_input_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bottom_input_column.SetSizer(self.bottom_input_sizer)
+
+        self.guess_input = wx.TextCtrl(
+            self.bottom_input_column, style=wx.TE_PROCESS_ENTER | wx.TE_CENTER
+        )
         self.guess_input.SetMaxLength(5)
         self.guess_input.SetMinSize((70, -1))
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
+        self.bottom_input_sizer.AddStretchSpacer(1)
+        self.bottom_input_sizer.Add(self.guess_input, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.bottom_input_sizer.AddStretchSpacer(1)
 
-        self.submit_button = wx.Button(panel, label="")
-        self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit_guess)
+        left_row.Add(self.bottom_left_balancer, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        left_row.AddStretchSpacer(1)
+        left_row.Add(self.word_slots_panel, 0, wx.ALIGN_CENTER_VERTICAL)
+        left_row.AddStretchSpacer(1)
+        left_row.Add(self.bottom_input_column, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        self.new_game_button = wx.Button(panel, label="")
-        self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
-
-        input_row.Add(self.guess_input, 0, wx.RIGHT, 8)
-        input_row.Add(self.submit_button, 0, wx.RIGHT, 8)
-        input_row.AddStretchSpacer(1)
-        input_row.Add(self.new_game_button, 0)
-
-        if self.info_bar is not None:
-            sizer.Add(self.info_bar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.status_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.session_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.word_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(self.input_hint_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        sizer.Add(input_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        if self.message_label is not None:
+            sizer.Add(self.message_label, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        sizer.Add(left_row, 1, wx.EXPAND | wx.ALL, 8)
 
         panel.SetSizer(sizer)
 
@@ -172,6 +231,7 @@ class HangpersonFrame(wx.Frame):
             return False
 
         min_length, max_length, self.max_errors = DIFFICULTY_SETTINGS[difficulty_choice]
+        self.difficulty_key = difficulty_choice
         self.words = filter_words_for_difficulty(all_words, min_length, max_length)
         self.difficulty_name = str(self.ui["difficulty_names"][difficulty_choice])
 
@@ -183,15 +243,10 @@ class HangpersonFrame(wx.Frame):
             )
             return False
 
-        language_status = str(self.ui["language_selected"]).format(language=self.language_name)
-        difficulty_status = str(self.ui["difficulty_selected"]).format(
-            difficulty=self.difficulty_name, max_errors=self.max_errors
-        )
-        self.status_label.SetLabel(f"{language_status}    {difficulty_status}")
         self.session_rounds_played = 0
         self.session_rounds_won = 0
-        self.session_label.SetLabel(self._format_session_stats())
-        self.guessed_list.Clear()
+        self._build_bad_guess_slots(self.max_errors)
+        self._update_status_widgets()
         self._dismiss_info()
 
         self.start_new_round()
@@ -308,7 +363,6 @@ class HangpersonFrame(wx.Frame):
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
         self.round_input_enabled = enabled
         self.guess_input.Enable(enabled)
-        self.submit_button.Enable(enabled)
 
     def _show_centered_round_complete_dialog(
         self, round_summary: str, replay_label: str
@@ -439,7 +493,7 @@ class HangpersonFrame(wx.Frame):
         self.session_rounds_played += 1
         if won:
             self.session_rounds_won += 1
-        self.session_label.SetLabel(self._format_session_stats())
+        self._update_status_widgets()
 
     def _format_session_stats(self) -> str:
         percentage = 0.0
@@ -455,24 +509,16 @@ class HangpersonFrame(wx.Frame):
         if self.game is None:
             return
 
-        word_text = " ".join(self.game.progress)
-        self.word_label.SetLabel(f"{self.ui['word_label']}: {word_text}")
-
-        self.guessed_list.Set(self._format_guessed_slots())
+        self._update_word_slots()
+        self._update_bad_guess_slots()
 
         self._set_guess_controls_enabled(True)
         self.draw_panel.Refresh()
 
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
-        self.input_hint_label.SetLabel(str(self.ui["keyboard_input_hint"]))
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
-
-        self.submit_button.SetLabel("↵")
-        self.submit_button.SetForegroundColour(wx.Colour(0, 0, 0))
-        self.submit_button.SetToolTip(str(self.ui["submit_button"]))
-        self.submit_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.submit_button.SetMinSize((44, 34))
+        self._sync_bottom_balancer()
 
         self.new_game_button.SetLabel("↻")
         self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
@@ -483,41 +529,26 @@ class HangpersonFrame(wx.Frame):
     def _show_info(
         self, message: str, icon_flag: int = wx.ICON_WARNING, timeout_ms: int = 2200
     ) -> None:
-        if self.info_bar is None:
+        if self.message_label is None:
             return
-        show_message = getattr(self.info_bar, "ShowMessage", None)
-        if callable(show_message):
-            show_message(message, icon_flag)
-        elif self.info_fallback_label is not None:
-            self.info_fallback_label.SetLabel(message)
-            self.info_fallback_label.Show()
-            self.info_fallback_label.GetParent().Layout()
+        bg = wx.Colour(255, 245, 207)
+        fg = wx.Colour(120, 80, 0)
+        if icon_flag == wx.ICON_INFORMATION:
+            bg = wx.Colour(229, 243, 255)
+            fg = wx.Colour(31, 78, 121)
+        self.message_label.SetBackgroundColour(bg)
+        self.message_label.SetForegroundColour(fg)
+        self.message_label.SetLabel(message)
+        self.message_label.GetParent().Layout()
         if self.info_hide_timer is not None and self.info_hide_timer.IsRunning():
             self.info_hide_timer.Stop()
         self.info_hide_timer = wx.CallLater(timeout_ms, self._dismiss_info)
 
-    def _create_info_widget(self, parent: wx.Window) -> wx.Window:
-        info_bar_cls = getattr(wx.adv, "InfoBar", None) or getattr(wx, "InfoBar", None)
-        if info_bar_cls is not None:
-            return info_bar_cls(parent)
-
-        # Fallback for wx builds that do not expose InfoBar.
-        self.info_fallback_label = wx.StaticText(parent, label="")
-        self.info_fallback_label.SetBackgroundColour(wx.Colour(255, 245, 207))
-        self.info_fallback_label.SetForegroundColour(wx.Colour(120, 80, 0))
-        self.info_fallback_label.Hide()
-        return self.info_fallback_label
-
     def _dismiss_info(self) -> None:
-        if self.info_bar is None:
+        if self.message_label is None:
             return
-        dismiss = getattr(self.info_bar, "Dismiss", None)
-        if callable(dismiss):
-            dismiss()
-            return
-        if self.info_fallback_label is not None:
-            self.info_fallback_label.Hide()
-            self.info_fallback_label.GetParent().Layout()
+        self.message_label.SetLabel("")
+        self.message_label.GetParent().Layout()
 
     def _format_guessed_slots(self) -> list[str]:
         if self.game is None:
@@ -530,6 +561,103 @@ class HangpersonFrame(wx.Frame):
         )
         remaining_slots = max(self.max_errors - len(incorrect_letters), 0)
         return incorrect_letters + [self.GUESS_SLOT_SYMBOL] * remaining_slots
+
+    def _build_word_slots(self, slot_count: int) -> None:
+        self.word_slots_sizer.Clear(delete_windows=True)
+        self.word_slot_cells = []
+        for _ in range(slot_count):
+            border = wx.Panel(self.word_slots_panel)
+            border.SetBackgroundColour(wx.Colour(28, 62, 89))
+            content = wx.Panel(border)
+            content.SetBackgroundColour(wx.Colour(246, 252, 246))
+            content.SetMinSize((34, 48))
+
+            inner = wx.StaticText(
+                content,
+                label="",
+                style=wx.ALIGN_CENTER,
+            )
+            inner.SetFont(wx.Font(wx.FontInfo(20).Bold()))
+            inner.SetForegroundColour(wx.Colour(22, 38, 53))
+            inner.SetMinSize((24, 30))
+
+            content_sizer = wx.BoxSizer(wx.VERTICAL)
+            content_sizer.AddStretchSpacer(1)
+            content_sizer.Add(inner, 0, wx.ALIGN_CENTER)
+            content_sizer.AddStretchSpacer(1)
+            content.SetSizer(content_sizer)
+
+            border_sizer = wx.BoxSizer(wx.VERTICAL)
+            border_sizer.Add(content, 1, wx.EXPAND | wx.ALL, 1)
+            border.SetSizer(border_sizer)
+            border.SetMinSize((36, 50))
+
+            self.word_slots_sizer.Add(border, 0, wx.RIGHT, 8)
+            self.word_slot_cells.append(inner)
+        self.word_slots_panel.Layout()
+
+    def _update_word_slots(self) -> None:
+        if self.game is None:
+            return
+        if len(self.word_slot_cells) != len(self.game.progress):
+            self._build_word_slots(len(self.game.progress))
+        for idx, char in enumerate(self.game.progress):
+            self.word_slot_cells[idx].SetLabel("" if char == "-" else char)
+        self.word_slots_panel.Layout()
+
+    def _sync_bottom_balancer(self) -> None:
+        column_width = self.status_panel.GetMinSize().width
+        self.bottom_left_balancer.SetMinSize((column_width, -1))
+        self.bottom_input_column.SetMinSize((column_width, -1))
+        self.bottom_left_balancer.GetParent().Layout()
+
+    def _build_bad_guess_slots(self, slot_count: int) -> None:
+        sizer = self.bad_guess_slots_panel.GetSizer()
+        if sizer is None:
+            return
+        sizer.Clear(delete_windows=True)
+        self.bad_guess_cells = []
+        for _ in range(slot_count):
+            slot = wx.StaticText(
+                self.bad_guess_slots_panel,
+                label=self.GUESS_SLOT_SYMBOL,
+                style=wx.ALIGN_CENTER_HORIZONTAL | wx.ST_NO_AUTORESIZE | wx.BORDER_SIMPLE,
+            )
+            slot.SetMinSize((28, 40))
+            slot.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+            sizer.Add(slot, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 4)
+            self.bad_guess_cells.append(slot)
+        self.bad_guess_slots_panel.Layout()
+
+    def _update_bad_guess_slots(self) -> None:
+        letters = self._format_guessed_slots()
+        if len(self.bad_guess_cells) != len(letters):
+            self._build_bad_guess_slots(len(letters))
+        for idx, value in enumerate(letters):
+            self.bad_guess_cells[idx].SetLabel(value)
+        self.bad_guess_slots_panel.Layout()
+
+    def _update_status_widgets(self) -> None:
+        self.score_fraction_label.SetLabel(
+            f"{self.session_rounds_won}\n—\n{self.session_rounds_played}"
+        )
+        self.language_badge.SetLabel(self._language_flag(self.language_key))
+        self.difficulty_badge.SetLabel(self._difficulty_icon(self.difficulty_key))
+        self.status_panel.Layout()
+
+    def _language_flag(self, key: str) -> str:
+        return {
+            "e": "🇺🇸",
+            "f": "🇫🇷",
+            "r": "🇷🇺",
+        }.get(key, "🏳️")
+
+    def _difficulty_icon(self, key: str) -> str:
+        return {
+            "1": "👶",
+            "2": "🎓",
+            "3": "🧙",
+        }.get(key, "❓")
 
 
 def main() -> None:
