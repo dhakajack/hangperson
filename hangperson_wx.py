@@ -23,6 +23,8 @@ from hangperson import (
 class HangpersonFrame(wx.Frame):
     """Main GUI frame for the Hangperson game."""
     GUESS_SLOT_SYMBOL = "▯"
+    LANGUAGE_IMAGE_SIZE = (120, 60)
+    DIFFICULTY_IMAGE_SIZE = (120, 92)
 
     def __init__(self) -> None:
         super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
@@ -44,6 +46,10 @@ class HangpersonFrame(wx.Frame):
         self.message_label: wx.StaticText | None = None
         self.word_slot_cells: list[wx.StaticText] = []
         self.bad_guess_cells: list[wx.StaticText] = []
+        self.language_badge_bitmap: wx.StaticBitmap | None = None
+        self.language_badge_fallback: wx.StaticText | None = None
+        self.difficulty_badge_bitmap: wx.StaticBitmap | None = None
+        self.difficulty_badge_fallback: wx.StaticText | None = None
 
         self._build_layout()
         self.Centre()
@@ -108,31 +114,39 @@ class HangpersonFrame(wx.Frame):
         score_row.Add(self.trophy_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         score_row.Add(self.score_fraction_label, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        self.language_badge_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
-        self.language_badge_panel.SetBackgroundColour(wx.Colour(247, 242, 213))
-        self.language_badge_panel.SetMinSize((0, 44))
+        self.language_badge_panel = wx.Panel(panel)
+        self.language_badge_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self.language_badge_panel.SetMinSize((0, 66))
         language_badge_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.language_badge = wx.StaticText(
+        self.language_badge_bitmap = wx.StaticBitmap(
+            self.language_badge_panel, bitmap=wx.Bitmap(1, 1)
+        )
+        self.language_badge_fallback = wx.StaticText(
             self.language_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
         )
-        self.language_badge.SetFont(wx.Font(wx.FontInfo(18).Bold()))
-        self.language_badge.SetForegroundColour(wx.Colour(22, 38, 53))
+        self.language_badge_fallback.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+        self.language_badge_fallback.SetForegroundColour(wx.Colour(22, 38, 53))
         language_badge_sizer.AddStretchSpacer(1)
-        language_badge_sizer.Add(self.language_badge, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        language_badge_sizer.Add(self.language_badge_bitmap, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        language_badge_sizer.Add(self.language_badge_fallback, 0, wx.ALIGN_CENTER_HORIZONTAL)
         language_badge_sizer.AddStretchSpacer(1)
         self.language_badge_panel.SetSizer(language_badge_sizer)
 
-        self.difficulty_badge_panel = wx.Panel(panel, style=wx.BORDER_SIMPLE)
-        self.difficulty_badge_panel.SetBackgroundColour(wx.Colour(247, 242, 213))
-        self.difficulty_badge_panel.SetMinSize((0, 58))
+        self.difficulty_badge_panel = wx.Panel(panel)
+        self.difficulty_badge_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self.difficulty_badge_panel.SetMinSize((0, 98))
         difficulty_badge_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.difficulty_badge = wx.StaticText(
+        self.difficulty_badge_bitmap = wx.StaticBitmap(
+            self.difficulty_badge_panel, bitmap=wx.Bitmap(1, 1)
+        )
+        self.difficulty_badge_fallback = wx.StaticText(
             self.difficulty_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
         )
-        self.difficulty_badge.SetFont(wx.Font(wx.FontInfo(18).Bold()))
-        self.difficulty_badge.SetForegroundColour(wx.Colour(22, 38, 53))
+        self.difficulty_badge_fallback.SetFont(wx.Font(wx.FontInfo(18).Bold()))
+        self.difficulty_badge_fallback.SetForegroundColour(wx.Colour(22, 38, 53))
         difficulty_badge_sizer.AddStretchSpacer(1)
-        difficulty_badge_sizer.Add(self.difficulty_badge, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        difficulty_badge_sizer.Add(self.difficulty_badge_bitmap, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        difficulty_badge_sizer.Add(self.difficulty_badge_fallback, 0, wx.ALIGN_CENTER_HORIZONTAL)
         difficulty_badge_sizer.AddStretchSpacer(1)
         self.difficulty_badge_panel.SetSizer(difficulty_badge_sizer)
 
@@ -143,6 +157,9 @@ class HangpersonFrame(wx.Frame):
         self.guess_input.SetMaxLength(5)
         self.guess_input.SetMinSize((90, -1))
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
+        self.guess_prompt_label = wx.StaticText(panel, label="")
+        self.guess_prompt_label.SetFont(wx.Font(wx.FontInfo(10).Bold()))
+        self.guess_prompt_label.SetForegroundColour(wx.Colour(22, 38, 53))
 
         sizer.Add(score_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
         sizer.Add(self.language_badge_panel, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 12)
@@ -151,6 +168,8 @@ class HangpersonFrame(wx.Frame):
         )
         sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
         sizer.AddStretchSpacer(1)
+        sizer.Add(self.guess_prompt_label, 0, wx.LEFT | wx.RIGHT, 12)
+        sizer.AddSpacer(4)
         sizer.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
         sizer.AddSpacer(12)
 
@@ -342,7 +361,7 @@ class HangpersonFrame(wx.Frame):
 
         if self.game.is_lost():
             self._record_round_result(won=False)
-            round_summary = " ".join(
+            round_summary = "\n".join(
                 [
                     str(self.ui["loss_summary"]).format(max_errors=self.max_errors),
                     str(self.ui["loss_word"]).format(word=self.game.word.upper()),
@@ -515,6 +534,7 @@ class HangpersonFrame(wx.Frame):
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
+        self.guess_prompt_label.SetLabel(str(self.ui["guess_prompt_label"]))
 
         self.new_game_button.SetLabel("↻")
         self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
@@ -607,6 +627,7 @@ class HangpersonFrame(wx.Frame):
             return
         sizer.Clear(delete_windows=True)
         self.bad_guess_cells = []
+        sizer.AddStretchSpacer(1)
         for _ in range(slot_count):
             slot = wx.StaticText(
                 self.bad_guess_slots_panel,
@@ -617,6 +638,7 @@ class HangpersonFrame(wx.Frame):
             slot.SetFont(wx.Font(wx.FontInfo(18).Bold()))
             sizer.Add(slot, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 4)
             self.bad_guess_cells.append(slot)
+        sizer.AddStretchSpacer(1)
         self.bad_guess_slots_panel.Layout()
 
     def _update_bad_guess_slots(self) -> None:
@@ -631,8 +653,8 @@ class HangpersonFrame(wx.Frame):
         self.score_fraction_label.SetLabel(
             f"{self.session_rounds_won}\n—\n{self.session_rounds_played}"
         )
-        self.language_badge.SetLabel(self._language_badge_text(self.language_key))
-        self.difficulty_badge.SetLabel(self._difficulty_badge_text(self.difficulty_key))
+        self._set_language_badge(self.language_key)
+        self._set_difficulty_badge(self.difficulty_key)
         self.status_panel.Layout()
 
     def _language_flag(self, key: str) -> str:
@@ -662,6 +684,74 @@ class HangpersonFrame(wx.Frame):
             "2": "M",
             "3": "H",
         }.get(key, "?")
+
+    def _assets_root(self) -> Path:
+        return Path(__file__).resolve().parent / "assets" / "images"
+
+    def _load_scaled_bitmap(self, path: Path, size: tuple[int, int]) -> wx.Bitmap | None:
+        if not path.exists():
+            return None
+        image = wx.Image(str(path), wx.BITMAP_TYPE_ANY)
+        if not image.IsOk():
+            return None
+        max_w, max_h = size
+        w, h = image.GetWidth(), image.GetHeight()
+        if w <= 0 or h <= 0:
+            return None
+        scale = min(max_w / w, max_h / h)
+        new_w = max(1, int(w * scale))
+        new_h = max(1, int(h * scale))
+        return image.Scale(new_w, new_h, wx.IMAGE_QUALITY_HIGH).ConvertToBitmap()
+
+    def _set_language_badge(self, key: str) -> None:
+        if self.language_badge_bitmap is None or self.language_badge_fallback is None:
+            return
+        filename = {
+            "e": "lang_en.png",
+            "f": "lang_fr.png",
+            "r": "lang_ru.png",
+        }.get(key, "")
+        bitmap = (
+            self._load_scaled_bitmap(
+                self._assets_root() / "language" / filename,
+                self.LANGUAGE_IMAGE_SIZE,
+            )
+            if filename
+            else None
+        )
+        if bitmap is not None:
+            self.language_badge_bitmap.SetBitmap(bitmap)
+            self.language_badge_bitmap.Show()
+            self.language_badge_fallback.Hide()
+            return
+        self.language_badge_bitmap.Hide()
+        self.language_badge_fallback.SetLabel(self._language_badge_text(key))
+        self.language_badge_fallback.Show()
+
+    def _set_difficulty_badge(self, key: str) -> None:
+        if self.difficulty_badge_bitmap is None or self.difficulty_badge_fallback is None:
+            return
+        filename = {
+            "1": "difficulty_easy.png",
+            "2": "difficulty_medium.png",
+            "3": "difficulty_hard.png",
+        }.get(key, "")
+        bitmap = (
+            self._load_scaled_bitmap(
+                self._assets_root() / "difficulty" / filename,
+                self.DIFFICULTY_IMAGE_SIZE,
+            )
+            if filename
+            else None
+        )
+        if bitmap is not None:
+            self.difficulty_badge_bitmap.SetBitmap(bitmap)
+            self.difficulty_badge_bitmap.Show()
+            self.difficulty_badge_fallback.Hide()
+            return
+        self.difficulty_badge_bitmap.Hide()
+        self.difficulty_badge_fallback.SetLabel(self._difficulty_badge_text(key))
+        self.difficulty_badge_fallback.Show()
 
 
 def main() -> None:

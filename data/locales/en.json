@@ -46,5 +46,6 @@
   "difficulty_prompt_gui": "Choose difficulty",
   "win_short": "You win!",
   "keyboard_input_hint": "Type a letter, then press Enter.",
-  "letter_wrong_script": "Please use letters from the selected language alphabet."
+  "letter_wrong_script": "Please use letters from the selected language alphabet.",
+  "guess_prompt_label": "Your Guess"
 }

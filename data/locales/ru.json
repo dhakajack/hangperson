@@ -46,5 +46,6 @@
   "difficulty_prompt_gui": "Выберите сложность",
   "win_short": "Вы выиграли!",
   "keyboard_input_hint": "Введите букву, затем нажмите Enter.",
-  "letter_wrong_script": "Используйте только буквы алфавита выбранного языка."
+  "letter_wrong_script": "Используйте только буквы алфавита выбранного языка.",
+  "guess_prompt_label": "Ваш вариант"
 }
