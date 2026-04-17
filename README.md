@@ -71,6 +71,31 @@ Simple TDD loop:
 
 Edit language files in `data/` (`words_en.txt`, `words_fr.txt`, `words_ru.txt`) and add one word per line.
 
+### Word Entry Criteria
+
+Use dictionary/base forms so word lists stay consistent and predictable across languages:
+
+- Nouns: dictionary citation form.
+  - English/French: singular.
+  - Russian: nominative singular.
+- Adjectives: dictionary citation form.
+  - French: masculine singular.
+  - Russian: long-form, masculine, nominative, singular.
+- Verbs: dictionary citation form.
+  - English/French: infinitive headword form (for example: `run`, `marcher`).
+  - Russian: infinitive form; both imperfective and perfective infinitives are allowed.
+- Lowercase only.
+- Alphabetic characters only (`isalpha`), so avoid punctuation/apostrophes/hyphens.
+- Avoid proper nouns, acronyms, and abbreviations.
+- Keep one lemma per line (no duplicates).
+
+Coverage target per language:
+
+- Include enough words for all difficulty bands:
+  - Easy: 6-7 letters
+  - Medium: 8-9 letters
+  - Hard: 10+ letters
+
 ## Add or edit UI languages
 
 Localization strings live in `data/locales/`:
