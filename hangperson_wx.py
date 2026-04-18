@@ -297,8 +297,9 @@ class HangpersonFrame(wx.Frame):
             "English",
             "Français",
             "Русский",
+            "Ελληνικά",
         ]
-        language_keys = ["e", "f", "r"]
+        language_keys = ["e", "f", "r", "el"]
         selection = self._show_choice_dialog("Language", choices, min_size=(320, 240))
         if selection is None:
             return None
@@ -682,6 +683,7 @@ class HangpersonFrame(wx.Frame):
             "e": "🇺🇸",
             "f": "🇫🇷",
             "r": "🇷🇺",
+            "el": "🇬🇷",
         }.get(key, "🏳️")
 
     def _difficulty_icon(self, key: str) -> str:
@@ -696,6 +698,7 @@ class HangpersonFrame(wx.Frame):
             "e": "EN",
             "f": "FR",
             "r": "RU",
+            "el": "EL",
         }.get(key, "--")
 
     def _difficulty_badge_text(self, key: str) -> str:
@@ -730,6 +733,7 @@ class HangpersonFrame(wx.Frame):
             "e": "lang_en.png",
             "f": "lang_fr.png",
             "r": "lang_ru.png",
+            "el": "lang_el.png",
         }.get(key, "")
         bitmap = (
             self._load_scaled_bitmap(

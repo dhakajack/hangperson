@@ -27,6 +27,11 @@ LANGUAGE_SETTINGS: dict[str, dict[str, str | Path]] = {
         "words_file": Path("data/words_ru.txt"),
         "locale_file": Path("data/locales/ru.json"),
     },
+    "el": {
+        "name": "Ελληνικά",
+        "words_file": Path("data/words_el.txt"),
+        "locale_file": Path("data/locales/el.json"),
+    },
 }
 
 LANGUAGE_ALIASES: dict[str, str] = {
@@ -44,6 +49,11 @@ LANGUAGE_ALIASES: dict[str, str] = {
     "ru": "r",
     "russian": "r",
     "русский": "r",
+    "g": "el",
+    "el": "el",
+    "greek": "el",
+    "ελληνικα": "el",
+    "ελληνικά": "el",
 }
 
 DIFFICULTY_SETTINGS: dict[str, tuple[int, int | None, int]] = {
@@ -115,7 +125,9 @@ def is_letter_for_language(letter: str, language_key: str) -> bool:
         return "LATIN" in unicode_name
     if language_key == "r":
         return "CYRILLIC" in unicode_name
-    return True
+    if language_key == "el":
+        return "GREEK" in unicode_name
+    return False
 
 
 def prompt_letter(ui: dict[str, object], language_key: str) -> str:
@@ -137,12 +149,12 @@ def resolve_language_choice(choice: str) -> str | None:
 def prompt_language() -> tuple[str, dict[str, str | Path]]:
     while True:
         choice = input(
-            "Choose language: English (E), Français (F), Русский (Р): "
+            "Choose language: English (E), Français (F), Русский (Р), Ελληνικά (G): "
         )
         language_key = resolve_language_choice(choice)
         if language_key:
             return language_key, LANGUAGE_SETTINGS[language_key]
-        print("Please enter E, F, or Р.")
+        print("Please enter E, F, Р, or G.")
 
 
 def prompt_difficulty(ui: dict[str, object]) -> tuple[str, str, int, int | None, int]:

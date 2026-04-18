@@ -17,6 +17,7 @@ LANGUAGE_TO_TSV: dict[str, Path] = {
     "e": Path("data/difficulty/en_difficulty.tsv"),
     "f": Path("data/difficulty/fr_difficulty.tsv"),
     "r": Path("data/difficulty/ru_difficulty.tsv"),
+    "el": Path("data/difficulty/el_difficulty.tsv"),
 }
 
 VALID_BANDS = frozenset({"easy", "medium", "hard"})
@@ -34,6 +35,8 @@ def _is_letter_for_language(letter: str, language_key: str) -> bool:
         return "LATIN" in unicode_name
     if language_key == "r":
         return "CYRILLIC" in unicode_name
+    if language_key == "el":
+        return "GREEK" in unicode_name
     return False
 
 

@@ -41,3 +41,21 @@ def test_load_band_words_from_tsv_raises_for_empty_band(tmp_path: Path) -> None:
 
     with pytest.raises(ScoreWordSourceError):
         load_band_words_from_tsv(tsv, language_key="e", band="hard")
+
+
+def test_load_band_words_from_tsv_supports_greek_language_key(tmp_path: Path) -> None:
+    tsv = tmp_path / "difficulty.tsv"
+    tsv.write_text(
+        "\n".join(
+            [
+                "word\tband",
+                "αγαπη\teasy",
+                "κοσμος\teasy",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    words = load_band_words_from_tsv(tsv, language_key="el", band="easy")
+    # Greek casefold turns final sigma (ς) into σ; min length filter keeps 6+ letters.
+    assert words == ["κοσμοσ"]
