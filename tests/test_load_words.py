@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from hangperson import LANGUAGE_SETTINGS, filter_words_for_difficulty, load_words
+from hangperson import (
+    LANGUAGE_SETTINGS,
+    filter_words_for_difficulty,
+    load_words,
+    load_words_for_session,
+)
+from scored_words import ScoreWordSourceError
 
 
 def test_load_words_filters_and_deduplicates(tmp_path: Path) -> None:
@@ -67,3 +73,50 @@ def test_word_lists_have_medium_and_hard_coverage() -> None:
         hard_words = filter_words_for_difficulty(words, 10, None)
         assert medium_words, f"Expected medium words in {settings['words_file']}"
         assert hard_words, f"Expected hard words in {settings['words_file']}"
+
+
+def test_load_words_for_session_uses_scored_words_when_available(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    words_file = tmp_path / "words.txt"
+    words_file.write_text("planet\nforest\n", encoding="utf-8")
+
+    def fake_scored(_: str, __: str) -> list[str]:
+        return ["mountain"]
+
+    monkeypatch.setattr("hangperson.load_scored_words_for_difficulty", fake_scored)
+    words, warning = load_words_for_session(
+        language_key="e",
+        words_file=words_file,
+        difficulty_key="2",
+        min_length=8,
+        max_length=9,
+    )
+
+    assert words == ["mountain"]
+    assert warning is None
+
+
+def test_load_words_for_session_falls_back_to_legacy_length_filter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    words_file = tmp_path / "words.txt"
+    words_file.write_text(
+        "\n".join(["planet", "mountain", "extraordinary"]),
+        encoding="utf-8",
+    )
+
+    def fake_scored(_: str, __: str) -> list[str]:
+        raise ScoreWordSourceError("score loading failed")
+
+    monkeypatch.setattr("hangperson.load_scored_words_for_difficulty", fake_scored)
+    words, warning = load_words_for_session(
+        language_key="e",
+        words_file=words_file,
+        difficulty_key="2",
+        min_length=8,
+        max_length=9,
+    )
+
+    assert words == ["mountain"]
+    assert warning is not None

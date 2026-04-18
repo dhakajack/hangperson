@@ -21,6 +21,7 @@
   "language_selected": "Language selected: {language}.",
   "difficulty_selected": "Difficulty selected: {difficulty} ({max_errors} max errors).",
   "start_error": "Could not start game: {error}",
+  "scored_words_fallback_warning": "Score-based words unavailable ({reason}). Falling back to legacy length-based words.",
   "no_words_error": "Could not start game: no words match your selected language and difficulty.",
   "difficulty_names": {
     "1": "Easy",

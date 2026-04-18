@@ -21,6 +21,7 @@
   "language_selected": "Выбран язык: {language}.",
   "difficulty_selected": "Выбрана сложность: {difficulty} (макс. ошибок: {max_errors}).",
   "start_error": "Не удалось начать игру: {error}",
+  "scored_words_fallback_warning": "Слова по score недоступны ({reason}). Используется классический список по длине.",
   "no_words_error": "Не удалось начать игру: нет слов для выбранных языка и сложности.",
   "difficulty_names": {
     "1": "Легко",

@@ -13,10 +13,9 @@ from hangperson import (
     LANGUAGE_SETTINGS,
     HangpersonGame,
     choose_word,
-    filter_words_for_difficulty,
     is_letter_for_language,
     load_locale,
-    load_words,
+    load_words_for_session,
 )
 
 
@@ -239,7 +238,6 @@ class HangpersonFrame(wx.Frame):
 
         try:
             self.ui = load_locale(Path(settings["locale_file"]))
-            all_words = load_words(Path(settings["words_file"]))
         except Exception as exc:  # pragma: no cover - GUI error path
             wx.MessageBox(f"Could not start game: {exc}", "Error", wx.OK | wx.ICON_ERROR)
             return False
@@ -252,8 +250,30 @@ class HangpersonFrame(wx.Frame):
 
         min_length, max_length, self.max_errors = DIFFICULTY_SETTINGS[difficulty_choice]
         self.difficulty_key = difficulty_choice
-        self.words = filter_words_for_difficulty(all_words, min_length, max_length)
+        try:
+            self.words, fallback_warning = load_words_for_session(
+                language_key=language_key,
+                words_file=Path(settings["words_file"]),
+                difficulty_key=difficulty_choice,
+                min_length=min_length,
+                max_length=max_length,
+            )
+        except Exception as exc:  # pragma: no cover - GUI error path
+            wx.MessageBox(
+                str(self.ui["start_error"]).format(error=exc),
+                str(self.ui["error_title"]),
+                wx.OK | wx.ICON_ERROR,
+            )
+            return False
         self.difficulty_name = str(self.ui["difficulty_names"][difficulty_choice])
+        if fallback_warning:
+            self._show_info(
+                str(self.ui["scored_words_fallback_warning"]).format(
+                    reason=fallback_warning
+                ),
+                wx.ICON_INFORMATION,
+                timeout_ms=5000,
+            )
 
         if not self.words:
             wx.MessageBox(

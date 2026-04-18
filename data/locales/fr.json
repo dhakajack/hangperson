@@ -21,6 +21,7 @@
   "language_selected": "Langue sélectionnée : {language}.",
   "difficulty_selected": "Difficulté sélectionnée : {difficulty} ({max_errors} erreurs max).",
   "start_error": "Impossible de démarrer la partie : {error}",
+  "scored_words_fallback_warning": "Mots à score indisponibles ({reason}). Retour à la liste classique par longueur.",
   "no_words_error": "Impossible de démarrer la partie : aucun mot ne correspond à la langue et à la difficulté sélectionnées.",
   "difficulty_names": {
     "1": "Facile",

@@ -9,6 +9,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from scored_words import ScoreWordSourceError, load_scored_words_for_difficulty
+
 LANGUAGE_SETTINGS: dict[str, dict[str, str | Path]] = {
     "e": {
         "name": "English",
@@ -143,14 +145,14 @@ def prompt_language() -> tuple[str, dict[str, str | Path]]:
         print("Please enter E, F, or Р.")
 
 
-def prompt_difficulty(ui: dict[str, object]) -> tuple[str, int, int | None, int]:
+def prompt_difficulty(ui: dict[str, object]) -> tuple[str, str, int, int | None, int]:
     while True:
         raw_choice = input(str(ui["difficulty_prompt"])).strip().lower()
         choice = DIFFICULTY_ALIASES.get(raw_choice)
         if choice in DIFFICULTY_SETTINGS:
             min_length, max_length, max_errors = DIFFICULTY_SETTINGS[choice]
             difficulty_name = str(ui["difficulty_names"][choice])
-            return difficulty_name, min_length, max_length, max_errors
+            return choice, difficulty_name, min_length, max_length, max_errors
         print(str(ui["difficulty_invalid"]))
 
 
@@ -160,6 +162,22 @@ def filter_words_for_difficulty(
     if max_length is None:
         return [word for word in words if len(word) >= min_length]
     return [word for word in words if min_length <= len(word) <= max_length]
+
+
+def load_words_for_session(
+    language_key: str,
+    words_file: Path,
+    difficulty_key: str,
+    min_length: int,
+    max_length: int | None,
+) -> tuple[list[str], str | None]:
+    """Load words using score TSV first; fallback to legacy length filtering."""
+    try:
+        return load_scored_words_for_difficulty(language_key, difficulty_key), None
+    except ScoreWordSourceError as exc:
+        fallback_words = load_words(words_file)
+        fallback_words = filter_words_for_difficulty(fallback_words, min_length, max_length)
+        return fallback_words, str(exc)
 
 
 @dataclass
@@ -269,14 +287,26 @@ def main() -> None:
         print(f"Could not start game: {exc}")
         return
 
-    difficulty_name, min_length, max_length, max_errors = prompt_difficulty(ui)
+    difficulty_key, difficulty_name, min_length, max_length, max_errors = prompt_difficulty(ui)
 
     try:
-        words = load_words(words_file)
-        words = filter_words_for_difficulty(words, min_length, max_length)
+        words, fallback_warning = load_words_for_session(
+            language_key=language_key,
+            words_file=words_file,
+            difficulty_key=difficulty_key,
+            min_length=min_length,
+            max_length=max_length,
+        )
     except Exception as exc:
         print(str(ui["start_error"]).format(error=exc))
         return
+
+    if fallback_warning:
+        print(
+            str(ui["scored_words_fallback_warning"]).format(
+                reason=fallback_warning
+            )
+        )
 
     if not words:
         print(str(ui["no_words_error"]))
