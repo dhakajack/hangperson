@@ -116,3 +116,40 @@ Rules applied by the loader:
 - minimum length: 6
 - letters only (`isalpha`, so accented and Cyrillic letters are allowed)
 - lowercase only
+
+## Difficulty Helper CLI
+
+Scaffolded helper for corpus-driven difficulty scoring:
+
+```bash
+python3 tools/compute_difficulty.py \
+  --language e \
+  --corpus data/corpus_en.txt \
+  --candidates data/words_en.txt \
+  --min-length 6 \
+  --output data/difficulty/en_difficulty.tsv
+```
+
+Key behavior:
+
+- Uses corpus statistics to compute language-aware features:
+  - letter rarity
+  - unique-letter ratio
+  - repetition ratio
+  - bigram unpredictability
+  - shortness adjustment
+- Standardizes features (z-scores) within the candidate set.
+- Produces a numeric score and a derived band (`easy`, `medium`, `hard`) in TSV output.
+- If `--candidates` is omitted, candidates are mined from corpus tokens.
+
+Output columns:
+
+- `word`
+- `length`
+- `score`
+- `band`
+- `rarity`
+- `unique_ratio`
+- `repetition_ratio`
+- `unpredictability`
+- `shortness`

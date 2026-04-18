@@ -14,3 +14,8 @@ __pycache__/
 
 # Local tooling metadata
 .codex
+
+# Large generated files
+data/corpora/*_normalized.txt
+data/corpora/*_freq.tsv
+data/corpora/*mb.txt
