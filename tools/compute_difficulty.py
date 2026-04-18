@@ -8,6 +8,8 @@ import csv
 import math
 import re
 import sys
+import time
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +21,12 @@ from hangperson import LANGUAGE_SETTINGS, is_letter_for_language
 
 
 TOKEN_RE = re.compile(r"[^\W\d_]+", flags=re.UNICODE)
+CLI_LANGUAGE_TO_INTERNAL: dict[str, str] = {
+    "en": "e",
+    "fr": "f",
+    "ru": "r",
+    "el": "el",
+}
 
 
 @dataclass(frozen=True)
@@ -55,12 +63,24 @@ class WordFeatures:
     band: str = ""
 
 
+@dataclass(frozen=True)
+class FrequencyData:
+    counts: dict[str, int]
+    total_tokens: int
+
+
 def _letters_only_for_language(text: str, language_key: str) -> list[str]:
     letters: list[str] = []
     for char in text.casefold():
-        if char.isalpha() and is_letter_for_language(char, language_key):
+        if char.isalpha() and _is_letter_for_language_extended(char, language_key):
             letters.append(char)
     return letters
+
+
+def _is_letter_for_language_extended(letter: str, language_key: str) -> bool:
+    if language_key == "el":
+        return "GREEK" in unicodedata.name(letter, "")
+    return is_letter_for_language(letter, language_key)
 
 
 def build_corpus_stats(corpus_text: str, language_key: str) -> CorpusStats:
@@ -102,7 +122,7 @@ def _normalize_candidates(
             continue
         if not word.isalpha():
             continue
-        if any(not is_letter_for_language(char, language_key) for char in word):
+        if any(not _is_letter_for_language_extended(char, language_key) for char in word):
             continue
         if len(word) < min_length:
             continue
@@ -128,16 +148,71 @@ def load_candidates(
     return _normalize_candidates(tokenized, language_key, min_length, max_length)
 
 
+def load_frequency_data(freq_tsv_path: Path) -> FrequencyData:
+    counts: dict[str, int] = {}
+    total_tokens = 0
+    with freq_tsv_path.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file, delimiter="\t")
+        if not reader.fieldnames or "word" not in reader.fieldnames or "count" not in reader.fieldnames:
+            raise ValueError(
+                f"Frequency TSV must include 'word' and 'count' columns: {freq_tsv_path}"
+            )
+        for row in reader:
+            word = str(row.get("word", "")).strip()
+            if not word:
+                continue
+            count_text = str(row.get("count", "")).strip()
+            try:
+                count = int(count_text)
+            except ValueError:
+                continue
+            if count <= 0:
+                continue
+            counts[word] = counts.get(word, 0) + count
+            total_tokens += count
+    if not counts:
+        raise ValueError(f"No frequency rows were loaded from {freq_tsv_path}.")
+    return FrequencyData(counts=counts, total_tokens=total_tokens)
+
+
+def filter_candidates_by_frequency(
+    candidates: list[str],
+    freq_data: FrequencyData,
+    min_frequency_count: int,
+    min_frequency_per_million: float,
+) -> list[str]:
+    if min_frequency_count < 0:
+        raise ValueError("min_frequency_count must be >= 0")
+    if min_frequency_per_million < 0:
+        raise ValueError("min_frequency_per_million must be >= 0")
+
+    if min_frequency_count == 0 and min_frequency_per_million == 0:
+        return candidates
+
+    threshold_count = min_frequency_count
+    if min_frequency_per_million > 0:
+        ppm_count = math.ceil((min_frequency_per_million / 1_000_000) * freq_data.total_tokens)
+        threshold_count = max(threshold_count, ppm_count)
+
+    return [word for word in candidates if freq_data.counts.get(word, 0) >= threshold_count]
+
+
 def _safe_log_prob(numerator: float, denominator: float) -> float:
     return -math.log(numerator / denominator)
 
 
-def extract_features(words: list[str], stats: CorpusStats) -> list[WordFeatures]:
+def extract_features(
+    words: list[str],
+    stats: CorpusStats,
+    progress_every: int = 0,
+) -> list[WordFeatures]:
     features: list[WordFeatures] = []
     alphabet_size = stats.alphabet_size
     letter_den = stats.total_letters + alphabet_size
+    total_words = len(words)
+    started_at = time.perf_counter()
 
-    for word in words:
+    for idx, word in enumerate(words, start=1):
         rarity_values: list[float] = []
         for char in word:
             char_count = stats.letter_counts.get(char, 0)
@@ -167,6 +242,16 @@ def extract_features(words: list[str], stats: CorpusStats) -> list[WordFeatures]
                 shortness=1.0 / len(word),
             )
         )
+        if progress_every > 0 and (idx % progress_every == 0 or idx == total_words):
+            elapsed = time.perf_counter() - started_at
+            rate = idx / elapsed if elapsed > 0 else 0.0
+            remaining = (total_words - idx) / rate if rate > 0 else 0.0
+            print(
+                "[compute_difficulty] scoring progress: "
+                f"{idx}/{total_words} ({(100.0 * idx / total_words):.1f}%), "
+                f"elapsed={elapsed:.1f}s, eta={remaining:.1f}s",
+                flush=True,
+            )
     return features
 
 
@@ -265,7 +350,11 @@ def parse_args() -> argparse.Namespace:
             "and a candidate word list."
         )
     )
-    parser.add_argument("--language", required=True, choices=["e", "f", "r"])
+    parser.add_argument(
+        "--language",
+        required=True,
+        choices=sorted(CLI_LANGUAGE_TO_INTERNAL.keys()),
+    )
     parser.add_argument("--corpus", required=True, type=Path)
     parser.add_argument(
         "--candidates",
@@ -279,34 +368,127 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-length", type=int, default=6)
     parser.add_argument("--max-length", type=int, default=0)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--freq-tsv",
+        type=Path,
+        default=None,
+        help=(
+            "Optional frequency TSV (word<TAB>count). "
+            "When provided, candidates can be filtered by minimum frequency."
+        ),
+    )
+    parser.add_argument(
+        "--min-frequency-count",
+        type=int,
+        default=0,
+        help="Minimum token count in --freq-tsv required to keep a candidate word.",
+    )
+    parser.add_argument(
+        "--min-frequency-per-million",
+        type=float,
+        default=0.0,
+        help=(
+            "Minimum frequency per million tokens required to keep a candidate word. "
+            "Applied against --freq-tsv totals."
+        ),
+    )
     parser.add_argument("--w-rarity", type=float, default=0.35)
     parser.add_argument("--w-unique", type=float, default=0.20)
     parser.add_argument("--w-repetition", type=float, default=-0.15)
     parser.add_argument("--w-unpredictability", type=float, default=0.20)
     parser.add_argument("--w-shortness", type=float, default=0.10)
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=5000,
+        help=(
+            "Print scoring progress every N candidate words. "
+            "Set to 0 to disable periodic progress output."
+        ),
+    )
     return parser.parse_args()
 
 
 def default_candidates_path(language_key: str) -> Path:
     repo_root = Path(__file__).resolve().parents[1]
+    if language_key == "el":
+        raise ValueError(
+            "No default Greek candidates file is configured. "
+            "Please provide --candidates for language 'el'."
+        )
     return repo_root / Path(str(LANGUAGE_SETTINGS[language_key]["words_file"]))
 
 
 def main() -> None:
     args = parse_args()
+    started_at = time.perf_counter()
     max_length = None if args.max_length <= 0 else args.max_length
+    language_key = CLI_LANGUAGE_TO_INTERNAL[args.language]
 
+    print(
+        "[compute_difficulty] Starting run "
+        f"(language={args.language}, corpus={args.corpus}, "
+        f"candidates={args.candidates or 'default'}, output={args.output}).",
+        flush=True,
+    )
+    print("[compute_difficulty] Reading corpus...", flush=True)
     corpus_text = args.corpus.read_text(encoding="utf-8")
-    stats = build_corpus_stats(corpus_text, args.language)
+    print("[compute_difficulty] Building corpus letter/bigram statistics...", flush=True)
+    stats = build_corpus_stats(corpus_text, language_key)
+    print(
+        "[compute_difficulty] Corpus stats ready "
+        f"(letters={stats.total_letters:,}, alphabet_size={stats.alphabet_size}).",
+        flush=True,
+    )
 
-    candidates_path = args.candidates or default_candidates_path(args.language)
+    candidates_path = args.candidates or default_candidates_path(language_key)
+    print(f"[compute_difficulty] Loading candidates from {candidates_path}...", flush=True)
     candidates = load_candidates(
-        language_key=args.language,
+        language_key=language_key,
         min_length=args.min_length,
         max_length=max_length,
         candidates_path=candidates_path,
         corpus_text=corpus_text,
     )
+    print(
+        f"[compute_difficulty] Candidate pool after length/script filters: {len(candidates):,}.",
+        flush=True,
+    )
+    frequency_filter_applied = False
+    if args.freq_tsv is not None:
+        print(f"[compute_difficulty] Loading frequencies from {args.freq_tsv}...", flush=True)
+        freq_data = load_frequency_data(args.freq_tsv)
+        print(
+            "[compute_difficulty] Frequency rows loaded "
+            f"(unique_words={len(freq_data.counts):,}, total_tokens={freq_data.total_tokens:,}).",
+            flush=True,
+        )
+        before_count = len(candidates)
+        candidates = filter_candidates_by_frequency(
+            candidates,
+            freq_data=freq_data,
+            min_frequency_count=args.min_frequency_count,
+            min_frequency_per_million=args.min_frequency_per_million,
+        )
+        after_count = len(candidates)
+        frequency_filter_applied = (
+            args.min_frequency_count > 0 or args.min_frequency_per_million > 0
+        )
+        if frequency_filter_applied:
+            print(
+                "[compute_difficulty] Frequency filter applied: "
+                f"{before_count} -> {after_count} candidates "
+                f"(min_count={args.min_frequency_count}, "
+                f"min_ppm={args.min_frequency_per_million})."
+                ,
+                flush=True,
+            )
+    elif args.min_frequency_count > 0 or args.min_frequency_per_million > 0:
+        raise SystemExit(
+            "Frequency thresholds were provided without --freq-tsv. "
+            "Provide --freq-tsv or set thresholds to zero."
+        )
+
     if not candidates:
         raise SystemExit("No candidates remain after filtering. Check inputs and length bounds.")
 
@@ -317,14 +499,24 @@ def main() -> None:
         unpredictability=args.w_unpredictability,
         shortness=args.w_shortness,
     )
-    features = extract_features(candidates, stats)
+    print(
+        f"[compute_difficulty] Scoring {len(candidates):,} candidates "
+        f"(progress_every={args.progress_every})...",
+        flush=True,
+    )
+    features = extract_features(candidates, stats, progress_every=args.progress_every)
+    print("[compute_difficulty] Assigning difficulty bands...", flush=True)
     score_features(features, weights)
     assign_bands(features)
+    print(f"[compute_difficulty] Writing TSV to {args.output}...", flush=True)
     write_tsv(features, args.output)
 
+    elapsed = time.perf_counter() - started_at
     print(
+        f"[compute_difficulty] Done in {elapsed:.1f}s. "
         f"Wrote {len(features)} scored words to {args.output} "
-        f"(language={args.language}, min_length={args.min_length}, max_length={max_length})."
+        f"(language={args.language}, min_length={args.min_length}, max_length={max_length}, "
+        f"frequency_filter={frequency_filter_applied})."
     )
 
 

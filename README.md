@@ -123,7 +123,7 @@ Scaffolded helper for corpus-driven difficulty scoring:
 
 ```bash
 python3 tools/compute_difficulty.py \
-  --language e \
+  --language en \
   --corpus data/corpus_en.txt \
   --candidates data/words_en.txt \
   --min-length 6 \
@@ -153,3 +153,212 @@ Output columns:
 - `repetition_ratio`
 - `unpredictability`
 - `shortness`
+
+## End-to-End Difficulty Pipeline (Reproducible)
+
+This project now has a full modular pipeline to build language difficulty TSVs.
+
+### 1. Acquire Apertium dictionaries
+
+Place source dictionary files in:
+
+- `data/dictionaries/apertium/`
+
+Expected source extensions:
+
+- `*.dix`
+- `*.metadix`
+
+### 2. Extract lemma word lists from Apertium
+
+```bash
+python3 tools/extract_apertium_wordlists.py
+```
+
+This creates `*_wl.txt` files in `data/dictionaries/apertium/`.
+
+### 3. Post-process dictionary lists
+
+Current canonical clean outputs are:
+
+- `apertium-eng.eng_wl_clean.txt`
+- `apertium-fra.fra_wl_clean.txt`
+- `apertium-rus.rus_wl_clean.txt`
+- `apertium-ell.ell_wl_clean.txt`
+
+Commands used:
+
+```bash
+python3 tools/postprocess_wordlist.py \
+  --input data/dictionaries/apertium/apertium-eng.eng_wl.txt \
+  --output data/dictionaries/apertium/apertium-eng.eng_wl_clean.txt \
+  --mode english-drop-accented \
+  --script-whitelist latin \
+  --english-strict-ascii \
+  --drop-all-caps \
+  --lowercase-only
+```
+
+```bash
+python3 tools/postprocess_wordlist.py \
+  --input data/dictionaries/apertium/apertium-fra.fra_wl.txt \
+  --output data/dictionaries/apertium/apertium-fra.fra_wl_clean.txt \
+  --mode french-decompose-ligatures \
+  --script-whitelist latin \
+  --drop-all-caps \
+  --lowercase-only
+```
+
+```bash
+python3 tools/postprocess_wordlist.py \
+  --input data/dictionaries/apertium/apertium-rus.rus_wl.txt \
+  --output data/dictionaries/apertium/apertium-rus.rus_wl_clean.txt \
+  --mode russian-remove-prereform \
+  --script-whitelist cyrillic \
+  --drop-all-caps \
+  --lowercase-only
+```
+
+```bash
+python3 tools/postprocess_wordlist.py \
+  --input data/dictionaries/apertium/apertium-ell.ell_wl.txt \
+  --output data/dictionaries/apertium/apertium-ell.ell_wl_clean.txt \
+  --mode greek-strip-diacritics \
+  --script-whitelist greek \
+  --drop-all-caps \
+  --lowercase-only
+```
+
+### 4. Download corpus samples
+
+List languages:
+
+```bash
+python3 tools/download_mc4_corpus.py --list-languages
+```
+
+Download (default is currently 100 MB):
+
+```bash
+python3 tools/download_mc4_corpus.py --language en
+python3 tools/download_mc4_corpus.py --language fr
+python3 tools/download_mc4_corpus.py --language ru
+python3 tools/download_mc4_corpus.py --language el
+```
+
+Large sample example:
+
+```bash
+python3 tools/download_mc4_corpus.py --language en --target-mb 1000
+```
+
+### 5. Normalize corpora (match dictionary cleanup rules)
+
+Use `tools/normalize_corpus.py` to build:
+
+- normalized token stream: `*_normalized.txt`
+- token frequency table: `*_freq.tsv`
+
+Example (100 MB files):
+
+```bash
+python3 -m tools.normalize_corpus \
+  --input data/corpora/allenai_c4_en_100mb.txt \
+  --output data/corpora/allenai_c4_en_100mb_normalized.txt \
+  --language en \
+  --frequency-output data/corpora/allenai_c4_en_100mb_freq.tsv
+```
+
+Repeat for `fr`, `ru`, and `el`.
+
+Notes:
+
+- Lowercasing is enabled by default in normalization.
+- Use `--no-lowercase` only if you intentionally want case-sensitive output.
+
+### 6. Compute difficulty TSV from clean dictionary + normalized corpus
+
+Recommended baseline thresholds:
+
+- `--min-length 6`
+- `--max-length 12`
+- `--min-frequency-count 5`
+- `--min-frequency-per-million 10`
+
+Greek typically needs a lower ppm threshold to keep enough words:
+
+- `--min-frequency-per-million 5`
+
+English:
+
+```bash
+python3 tools/compute_difficulty.py \
+  --language en \
+  --corpus data/corpora/allenai_c4_en_100mb_normalized.txt \
+  --candidates data/dictionaries/apertium/apertium-eng.eng_wl_clean.txt \
+  --freq-tsv data/corpora/allenai_c4_en_100mb_freq.tsv \
+  --min-length 6 \
+  --max-length 12 \
+  --min-frequency-per-million 10 \
+  --min-frequency-count 5 \
+  --progress-every 5000 \
+  --output data/difficulty/en_difficulty.tsv
+```
+
+French:
+
+```bash
+python3 tools/compute_difficulty.py \
+  --language fr \
+  --corpus data/corpora/allenai_c4_fr_100mb_normalized.txt \
+  --candidates data/dictionaries/apertium/apertium-fra.fra_wl_clean.txt \
+  --freq-tsv data/corpora/allenai_c4_fr_100mb_freq.tsv \
+  --min-length 6 \
+  --max-length 12 \
+  --min-frequency-per-million 10 \
+  --min-frequency-count 5 \
+  --progress-every 5000 \
+  --output data/difficulty/fr_difficulty.tsv
+```
+
+Russian:
+
+```bash
+python3 tools/compute_difficulty.py \
+  --language ru \
+  --corpus data/corpora/allenai_c4_ru_100mb_normalized.txt \
+  --candidates data/dictionaries/apertium/apertium-rus.rus_wl_clean.txt \
+  --freq-tsv data/corpora/allenai_c4_ru_100mb_freq.tsv \
+  --min-length 6 \
+  --max-length 12 \
+  --min-frequency-per-million 10 \
+  --min-frequency-count 5 \
+  --progress-every 5000 \
+  --output data/difficulty/ru_difficulty.tsv
+```
+
+Greek:
+
+```bash
+python3 tools/compute_difficulty.py \
+  --language el \
+  --corpus data/corpora/allenai_c4_el_100mb_normalized.txt \
+  --candidates data/dictionaries/apertium/apertium-ell.ell_wl_clean.txt \
+  --freq-tsv data/corpora/allenai_c4_el_100mb_freq.tsv \
+  --min-length 6 \
+  --max-length 12 \
+  --min-frequency-per-million 5 \
+  --min-frequency-count 5 \
+  --progress-every 5000 \
+  --output data/difficulty/el_difficulty.tsv
+```
+
+### 7. Optional manual review passes
+
+- English US/UK variant flagging for manual cleanup:
+
+```bash
+python3 tools/flag_en_uk_us_variants.py \
+  --input data/difficulty/en_difficulty.tsv \
+  --output data/difficulty/en_difficulty_uk_us_flags.tsv
+```

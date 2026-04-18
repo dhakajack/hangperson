@@ -67,6 +67,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Drop words that are entirely uppercase (typically acronyms).",
     )
+    parser.add_argument(
+        "--drop-titlecase",
+        action="store_true",
+        help="Drop words in title case (typically proper nouns).",
+    )
+    parser.add_argument(
+        "--lowercase-only",
+        action="store_true",
+        help="Keep only fully lowercase words.",
+    )
     return parser.parse_args()
 
 
@@ -127,6 +137,8 @@ def process_words(
     script_whitelist: str | None = None,
     english_strict_ascii: bool = False,
     drop_all_caps: bool = False,
+    drop_titlecase: bool = False,
+    lowercase_only: bool = False,
 ) -> list[str]:
     output: set[str] = set()
     for raw in words:
@@ -134,6 +146,8 @@ def process_words(
         if not word:
             continue
         if drop_all_caps and word.isupper():
+            continue
+        if drop_titlecase and word.istitle():
             continue
         if mode == MODE_ENGLISH_DROP_ACCENTED:
             if contains_diacritic(word):
@@ -160,6 +174,8 @@ def process_words(
         }
     if english_strict_ascii:
         filtered = {word for word in filtered if _is_english_ascii_word(word)}
+    if lowercase_only:
+        filtered = {word for word in filtered if word == word.lower()}
     return sorted(filtered)
 
 
@@ -172,6 +188,8 @@ def main() -> None:
         script_whitelist=args.script_whitelist,
         english_strict_ascii=args.english_strict_ascii,
         drop_all_caps=args.drop_all_caps,
+        drop_titlecase=args.drop_titlecase,
+        lowercase_only=args.lowercase_only,
     )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +200,8 @@ def main() -> None:
     print(
         f"Wrote {len(processed)} words to {args.output} "
         f"(mode={args.mode}, input={args.input}, script={args.script_whitelist}, "
-        f"english_ascii={args.english_strict_ascii}, drop_all_caps={args.drop_all_caps})."
+        f"english_ascii={args.english_strict_ascii}, drop_all_caps={args.drop_all_caps}, "
+        f"drop_titlecase={args.drop_titlecase}, lowercase_only={args.lowercase_only})."
     )
 
 

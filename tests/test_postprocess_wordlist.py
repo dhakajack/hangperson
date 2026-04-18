@@ -93,3 +93,23 @@ def test_process_words_with_script_ascii_and_caps_filters() -> None:
         drop_all_caps=True,
     )
     assert processed == ["Hello", "bonjour"]
+
+
+def test_process_words_drop_titlecase() -> None:
+    words = ["Tennessee", "planet", "Indiana", "mississippi"]
+    processed = process_words(
+        words,
+        MODE_ENGLISH_DROP_ACCENTED,
+        drop_titlecase=True,
+    )
+    assert processed == ["mississippi", "planet"]
+
+
+def test_process_words_lowercase_only() -> None:
+    words = ["tennessee", "Tennessee", "MISSISSIPPI", "mississippi"]
+    processed = process_words(
+        words,
+        MODE_ENGLISH_DROP_ACCENTED,
+        lowercase_only=True,
+    )
+    assert processed == ["mississippi", "tennessee"]
