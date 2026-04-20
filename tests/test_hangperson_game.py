@@ -1,4 +1,9 @@
-from hangperson import HangpersonGame, is_letter_for_language, resolve_language_choice
+from hangperson import (
+    HangpersonGame,
+    is_letter_for_language,
+    normalize_guess_for_language,
+    resolve_language_choice,
+)
 
 
 def test_hangperson_game_tracks_correct_incorrect_and_repeat_guesses() -> None:
@@ -55,3 +60,18 @@ def test_is_letter_for_language_respects_selected_script() -> None:
     assert is_letter_for_language("e", "r") is False
     assert is_letter_for_language("e", "el") is False
     assert is_letter_for_language("7", "e") is False
+
+
+def test_greek_sigma_variants_are_treated_as_single_guess() -> None:
+    game = HangpersonGame(word="κόσμος", max_errors=5)
+
+    # Entering terminal sigma should normalize to standard sigma.
+    guess1 = normalize_guess_for_language("ς", "el")
+    assert guess1 == "σ"
+    assert game.apply_guess(guess1) == "correct"
+    assert game.progress == ["-", "-", "Σ", "-", "-", "Σ"]
+
+    # Entering either sigma variant again should count as repeat.
+    guess2 = normalize_guess_for_language("σ", "el")
+    assert guess2 == "σ"
+    assert game.apply_guess(guess2) == "repeat"

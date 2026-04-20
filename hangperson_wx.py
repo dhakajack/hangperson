@@ -16,6 +16,7 @@ from hangperson import (
     is_letter_for_language,
     load_locale,
     load_words_for_session,
+    normalize_guess_for_language,
 )
 
 
@@ -352,6 +353,7 @@ class HangpersonFrame(wx.Frame):
             return
 
         self.guess_input.Clear()
+        guess = normalize_guess_for_language(guess, self.language_key)
         if not is_letter_for_language(guess, self.language_key):
             # Soft warning only: accept the guess to avoid false negatives on WSL key layouts.
             if not self.script_warning_shown:
@@ -471,7 +473,6 @@ class HangpersonFrame(wx.Frame):
         min_size: tuple[int, int] = (360, 260),
     ) -> int | None:
         dialog = wx.Dialog(self, title=title)
-        dialog.SetMinSize(min_size)
 
         outer = wx.BoxSizer(wx.VERTICAL)
         if prompt.strip():
@@ -479,6 +480,10 @@ class HangpersonFrame(wx.Frame):
             outer.Add(prompt_text, 0, wx.ALL, 10)
 
         list_box = wx.ListBox(dialog, choices=choices)
+        # Size list area based on option count so all entries are visible by default.
+        row_height = max(24, list_box.GetCharHeight() + 8)
+        list_height = max(row_height * max(1, len(choices)) + 6, 80)
+        list_box.SetMinSize((-1, list_height))
         if choices:
             list_box.SetSelection(0)
         outer.Add(list_box, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
@@ -518,6 +523,10 @@ class HangpersonFrame(wx.Frame):
         dialog.SetDefaultItem(confirm_button)
         list_box.SetFocus()
 
+        min_w, min_h = min_size
+        prompt_h = 40 if prompt.strip() else 0
+        dynamic_min_h = list_height + prompt_h + 90
+        dialog.SetMinSize((min_w, max(min_h, dynamic_min_h)))
         dialog.SetSizerAndFit(outer)
         try:
             if dialog.ShowModal() != wx.ID_OK:

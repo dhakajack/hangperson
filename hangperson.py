@@ -130,6 +130,13 @@ def is_letter_for_language(letter: str, language_key: str) -> bool:
     return False
 
 
+def normalize_guess_for_language(guess: str, language_key: str) -> str:
+    """Normalize language-specific guess variants to a canonical form."""
+    if language_key == "el" and guess == "ς":
+        return "σ"
+    return guess
+
+
 def prompt_letter(ui: dict[str, object], language_key: str) -> str:
     while True:
         guess = input("> ").strip().lower()
@@ -139,7 +146,7 @@ def prompt_letter(ui: dict[str, object], language_key: str) -> str:
         if not is_letter_for_language(guess, language_key):
             print(str(ui["letter_wrong_script"]))
             continue
-        return guess
+        return normalize_guess_for_language(guess, language_key)
 
 
 def resolve_language_choice(choice: str) -> str | None:
@@ -213,15 +220,25 @@ class HangpersonGame:
         guessed = ", ".join(sorted(letter.upper() for letter in self.guessed_letters))
         return guessed if guessed else self.guessed_none
 
+    @staticmethod
+    def _normalize_letter_for_word_compare(letter: str) -> str:
+        # Greek final sigma (ς) and sigma (σ) should be treated as the same guess.
+        if letter == "ς":
+            return "σ"
+        return letter
+
     def apply_guess(self, guess: str) -> str:
         if guess in self.guessed_letters:
             return "repeat"
 
         self.guessed_letters.add(guess)
 
-        if guess in self.word:
+        if any(
+            self._normalize_letter_for_word_compare(letter) == guess
+            for letter in self.word
+        ):
             for idx, letter in enumerate(self.word):
-                if letter == guess:
+                if self._normalize_letter_for_word_compare(letter) == guess:
                     self.progress[idx] = guess.upper()
             return "correct"
 
