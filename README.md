@@ -18,6 +18,7 @@ A simple command-line Hangperson game in Python.
 - Shows hidden letters as hyphens (for example: `- - - - - -`)
 - Accepts single-letter guesses from prompt `>`
 - Reveals correct guesses in UPPERCASE
+- Canonicalizes guesses with Unicode `casefold()` before comparison (for example, Greek `ς` and `σ` are treated as the same letter)
 - Ends game after the difficulty-specific incorrect guess limit
 - Prompts with numeric replay controls: `1` to play again, `0` to quit
 

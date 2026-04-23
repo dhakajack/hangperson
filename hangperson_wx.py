@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""wxPython GUI Hangperson skeleton with the existing game engine."""
+"""wxPython GUI Hangperson skeleton with inline setup flow."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import wx
@@ -22,26 +23,42 @@ from hangperson import (
 
 class HangpersonFrame(wx.Frame):
     """Main GUI frame for the Hangperson game."""
+
+    UI_MODE_SETUP = "setup"
+    UI_MODE_ACTIVE = "active_round"
+    UI_MODE_ROUND_COMPLETE = "round_complete"
+
     GUESS_SLOT_SYMBOL = "▯"
     LANGUAGE_IMAGE_SIZE = (120, 60)
     DIFFICULTY_IMAGE_SIZE = (120, 92)
+    ACTION_BUTTON_IMAGE_SIZE = (27, 27)
+
+    LANGUAGE_CYCLE = ["e", "f", "r", "el"]
+    DIFFICULTY_CYCLE = ["1", "2", "3"]
 
     def __init__(self) -> None:
         super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
         self.SetMinSize((780, 500))
 
         self.ui: dict[str, object] = {}
+        self.ui_mode = self.UI_MODE_SETUP
+
         self.language_key = ""
         self.language_name = ""
         self.difficulty_key = ""
         self.difficulty_name = ""
+
+        self.pending_language_key = ""
+        self.pending_difficulty_key = ""
+
         self.words: list[str] = []
         self.max_errors = 0
         self.game: HangpersonGame | None = None
         self.session_rounds_played = 0
         self.session_rounds_won = 0
         self.script_warning_shown = False
-        self.round_input_enabled = True
+        self.settings_lock_hint_shown = False
+        self.round_input_enabled = False
         self.info_hide_timer: wx.CallLater | None = None
         self.message_label: wx.StaticText | None = None
         self.word_slot_cells: list[wx.StaticText] = []
@@ -53,10 +70,99 @@ class HangpersonFrame(wx.Frame):
 
         self._build_layout()
         self.Centre()
+        self.Bind(wx.EVT_SHOW, self._on_frame_show)
 
-        started = self.start_session()
-        if not started:
+        self._initialize_setup_state()
+
+    @staticmethod
+    def _cycle_choice(options: list[str], current: str) -> str:
+        if not options:
+            return current
+        if current not in options:
+            return options[0]
+        idx = options.index(current)
+        return options[(idx + 1) % len(options)]
+
+    @staticmethod
+    def _is_valid_language_key(language_key: str) -> bool:
+        return language_key in LANGUAGE_SETTINGS
+
+    @staticmethod
+    def _is_valid_difficulty_key(difficulty_key: str) -> bool:
+        return difficulty_key in DIFFICULTY_SETTINGS
+
+    def _prefs_path(self) -> Path:
+        config_dir = Path(wx.StandardPaths.Get().GetUserConfigDir()) / "codex1"
+        return config_dir / "hangperson_wx_prefs.json"
+
+    def _load_preferences(self) -> tuple[str, str]:
+        default_language = "e"
+        default_difficulty = "2"
+        path = self._prefs_path()
+        if not path.exists():
+            return default_language, default_difficulty
+
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return default_language, default_difficulty
+
+        language_key = str(raw.get("language", default_language))
+        difficulty_key = str(raw.get("difficulty", default_difficulty))
+
+        if not self._is_valid_language_key(language_key):
+            language_key = default_language
+        if not self._is_valid_difficulty_key(difficulty_key):
+            difficulty_key = default_difficulty
+        return language_key, difficulty_key
+
+    def _save_preferences(self) -> None:
+        path = self._prefs_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "language": self.pending_language_key,
+                "difficulty": self.pending_difficulty_key,
+            }
+            path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except Exception:
+            # Preference persistence is best-effort.
+            return
+
+    def _initialize_setup_state(self) -> None:
+        language_key, difficulty_key = self._load_preferences()
+        self.pending_language_key = language_key
+        self.pending_difficulty_key = difficulty_key
+
+        if not self._load_ui_for_language(self.pending_language_key):
             self.Destroy()
+            return
+
+        self._apply_pending_difficulty()
+        self.enter_setup_mode(reset_session=True, show_hint=False)
+
+    def _load_ui_for_language(self, language_key: str) -> bool:
+        settings = LANGUAGE_SETTINGS.get(language_key)
+        if settings is None:
+            return False
+
+        try:
+            self.ui = load_locale(Path(settings["locale_file"]))
+        except Exception as exc:  # pragma: no cover - GUI error path
+            wx.MessageBox(f"Could not start game: {exc}", "Error", wx.OK | wx.ICON_ERROR)
+            return False
+
+        self._apply_localized_labels()
+        return True
+
+    def _apply_pending_difficulty(self) -> None:
+        min_length, max_length, max_errors = DIFFICULTY_SETTINGS[self.pending_difficulty_key]
+        _ = min_length
+        _ = max_length
+        self.max_errors = max_errors
 
     def _build_layout(self) -> None:
         root = wx.Panel(self)
@@ -101,6 +207,14 @@ class HangpersonFrame(wx.Frame):
         root_sizer.Add(bad_guess_panel, 0, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
 
         root.SetSizer(root_sizer)
+
+    def _on_frame_show(self, event: wx.ShowEvent) -> None:
+        if event.IsShown():
+            # On GTK, setting button bitmaps before the native widget is fully shown
+            # can trigger an assertion. Refresh button visuals once visible.
+            self._configure_action_button()
+            self._update_badge_tooltips()
+        event.Skip()
 
     def _build_status_panel(self, panel: wx.Panel) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -175,6 +289,21 @@ class HangpersonFrame(wx.Frame):
 
         panel.SetSizer(sizer)
 
+        self._bind_badge_click_targets()
+
+    def _bind_badge_click_targets(self) -> None:
+        targets: list[tuple[wx.Window | None, wx.PyEventBinder, callable]] = [
+            (self.language_badge_panel, wx.EVT_LEFT_UP, self.on_language_badge_click),
+            (self.language_badge_bitmap, wx.EVT_LEFT_UP, self.on_language_badge_click),
+            (self.language_badge_fallback, wx.EVT_LEFT_UP, self.on_language_badge_click),
+            (self.difficulty_badge_panel, wx.EVT_LEFT_UP, self.on_difficulty_badge_click),
+            (self.difficulty_badge_bitmap, wx.EVT_LEFT_UP, self.on_difficulty_badge_click),
+            (self.difficulty_badge_fallback, wx.EVT_LEFT_UP, self.on_difficulty_badge_click),
+        ]
+        for widget, event, handler in targets:
+            if widget is not None:
+                widget.Bind(event, handler)
+
     def _build_bottom_panel(self, panel: wx.Panel) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -216,7 +345,15 @@ class HangpersonFrame(wx.Frame):
                 "(placeholder for gallows + character)",
             )
         )
-        if self.game is not None:
+
+        if self.ui_mode == self.UI_MODE_SETUP:
+            subtitle = str(
+                self.ui.get(
+                    "setup_hint",
+                    "Click language/difficulty badges, then press Start.",
+                )
+            )
+        elif self.game is not None:
             subtitle = str(
                 self.ui.get(
                     "drawing_area_errors_format",
@@ -229,28 +366,17 @@ class HangpersonFrame(wx.Frame):
         dc.DrawText(subtitle, 28, 54)
 
     def start_session(self) -> bool:
-        language_key = self.prompt_language_key()
-        if language_key is None:
-            return False
-
-        self.language_key = language_key
+        language_key = self.pending_language_key
+        difficulty_choice = self.pending_difficulty_key
         settings = LANGUAGE_SETTINGS[language_key]
         self.language_name = str(settings["name"])
 
-        try:
-            self.ui = load_locale(Path(settings["locale_file"]))
-        except Exception as exc:  # pragma: no cover - GUI error path
-            wx.MessageBox(f"Could not start game: {exc}", "Error", wx.OK | wx.ICON_ERROR)
-            return False
-
-        self._apply_localized_labels()
-
-        difficulty_choice = self.prompt_difficulty_choice()
-        if difficulty_choice is None:
+        if not self._load_ui_for_language(language_key):
             return False
 
         min_length, max_length, self.max_errors = DIFFICULTY_SETTINGS[difficulty_choice]
-        self.difficulty_key = difficulty_choice
+        self.difficulty_name = str(self.ui["difficulty_names"][difficulty_choice])
+
         try:
             self.words, fallback_warning = load_words_for_session(
                 language_key=language_key,
@@ -266,12 +392,10 @@ class HangpersonFrame(wx.Frame):
                 wx.OK | wx.ICON_ERROR,
             )
             return False
-        self.difficulty_name = str(self.ui["difficulty_names"][difficulty_choice])
+
         if fallback_warning:
             self._show_info(
-                str(self.ui["scored_words_fallback_warning"]).format(
-                    reason=fallback_warning
-                ),
+                str(self.ui["scored_words_fallback_warning"]).format(reason=fallback_warning),
                 wx.ICON_INFORMATION,
                 timeout_ms=5000,
             )
@@ -284,43 +408,42 @@ class HangpersonFrame(wx.Frame):
             )
             return False
 
+        self.language_key = language_key
+        self.difficulty_key = difficulty_choice
         self.session_rounds_played = 0
         self.session_rounds_won = 0
         self._build_bad_guess_slots(self.max_errors)
         self._update_status_widgets()
         self._dismiss_info()
+        self._save_preferences()
 
         self.start_new_round()
         return True
 
-    def prompt_language_key(self) -> str | None:
-        choices = [
-            "English",
-            "Français",
-            "Русский",
-            "Ελληνικά",
-        ]
-        language_keys = ["e", "f", "r", "el"]
-        selection = self._show_choice_dialog("Language", choices, min_size=(320, 240))
-        if selection is None:
-            return None
-        return language_keys[selection]
+    def enter_setup_mode(self, *, reset_session: bool, show_hint: bool = True) -> None:
+        self.ui_mode = self.UI_MODE_SETUP
+        self.game = None
+        self.words = []
+        self.script_warning_shown = False
+        self.settings_lock_hint_shown = False
 
-    def prompt_difficulty_choice(self) -> str | None:
-        choices = [
-            str(self.ui["difficulty_names"]["1"]),
-            str(self.ui["difficulty_names"]["2"]),
-            str(self.ui["difficulty_names"]["3"]),
-        ]
-        difficulty_keys = ["1", "2", "3"]
-        selection = self._show_choice_dialog(
-            str(self.ui["difficulty_dialog_title"]),
-            choices,
-            prompt=str(self.ui["difficulty_prompt_gui"]),
-        )
-        if selection is None:
-            return None
-        return difficulty_keys[selection]
+        self._set_guess_controls_enabled(False)
+        self.guess_input.Clear()
+
+        self._apply_pending_difficulty()
+        self._build_word_slots(0)
+        self._build_bad_guess_slots(self.max_errors)
+
+        if reset_session:
+            self.session_rounds_played = 0
+            self.session_rounds_won = 0
+
+        self._apply_localized_labels()
+        self._update_status_widgets()
+        self.draw_panel.Refresh()
+
+        if show_hint:
+            self._show_info(str(self.ui.get("setup_hint", "")), wx.ICON_INFORMATION, timeout_ms=2600)
 
     def start_new_round(self) -> None:
         self.game = HangpersonGame(
@@ -329,17 +452,121 @@ class HangpersonFrame(wx.Frame):
             guessed_none=str(self.ui["guessed_none"]),
         )
 
+        self.ui_mode = self.UI_MODE_ACTIVE
+        self._configure_action_button()
+        self._update_badge_tooltips()
         self._refresh_game_views()
         self.script_warning_shown = False
+        self.settings_lock_hint_shown = False
         self.round_input_enabled = True
         self.guess_input.Clear()
         self.guess_input.SetFocus()
 
-    def on_new_game(self, _: wx.CommandEvent) -> None:
-        restarted = self.start_session()
-        if restarted:
+    def _can_change_settings(self) -> bool:
+        return self.ui_mode == self.UI_MODE_SETUP
+
+    def _show_locked_settings_hint_once(self) -> None:
+        if self.settings_lock_hint_shown:
             return
-        self._show_info(str(self.ui["session_kept_current"]), wx.ICON_INFORMATION)
+        self._show_info(str(self.ui["settings_locked_hint"]), wx.ICON_INFORMATION)
+        self.settings_lock_hint_shown = True
+
+    def on_language_badge_click(self, _: wx.MouseEvent) -> None:
+        if not self._can_change_settings():
+            self._show_locked_settings_hint_once()
+            return
+
+        self.pending_language_key = self._cycle_choice(self.LANGUAGE_CYCLE, self.pending_language_key)
+        if self._load_ui_for_language(self.pending_language_key):
+            self._apply_localized_labels()
+            self._update_status_widgets()
+            self.draw_panel.Refresh()
+            self._save_preferences()
+
+    def on_difficulty_badge_click(self, _: wx.MouseEvent) -> None:
+        if not self._can_change_settings():
+            self._show_locked_settings_hint_once()
+            return
+
+        self.pending_difficulty_key = self._cycle_choice(
+            self.DIFFICULTY_CYCLE, self.pending_difficulty_key
+        )
+        self._apply_pending_difficulty()
+        self._build_bad_guess_slots(self.max_errors)
+        self._apply_localized_labels()
+        self._update_status_widgets()
+        self.draw_panel.Refresh()
+        self._save_preferences()
+
+    def _confirm_enter_setup_mode(self) -> bool:
+        dialog = wx.Dialog(self, title=str(self.ui["restart_confirm_title"]))
+        dialog.SetMinSize((460, 190))
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        body = wx.StaticText(
+            dialog,
+            label=str(self.ui["restart_confirm_body"]),
+            style=wx.ALIGN_CENTER,
+        )
+        body.Wrap(420)
+        outer.Add(body, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.LEFT | wx.RIGHT, 12)
+        outer.AddStretchSpacer(1)
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        cancel_button = wx.BitmapButton(
+            dialog,
+            wx.ID_CANCEL,
+            wx.ArtProvider.GetBitmap(wx.ART_CROSS_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        ok_button = wx.BitmapButton(
+            dialog,
+            wx.ID_OK,
+            wx.ArtProvider.GetBitmap(wx.ART_TICK_MARK, wx.ART_BUTTON, (20, 20)),
+        )
+        cancel_button.SetToolTip(str(self.ui["restart_confirm_cancel_button"]))
+        ok_button.SetToolTip(str(self.ui["restart_confirm_ok_button"]))
+        buttons.Add(cancel_button, 0, wx.RIGHT, 8)
+        buttons.Add(ok_button, 0)
+
+        def on_ok(_: wx.CommandEvent) -> None:
+            dialog.EndModal(wx.ID_OK)
+
+        def on_cancel(_: wx.CommandEvent) -> None:
+            dialog.EndModal(wx.ID_CANCEL)
+
+        ok_button.Bind(wx.EVT_BUTTON, on_ok)
+        cancel_button.Bind(wx.EVT_BUTTON, on_cancel)
+        dialog.SetEscapeId(wx.ID_CANCEL)
+        dialog.SetDefaultItem(ok_button)
+        ok_button.SetFocus()
+
+        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        dialog.SetSizerAndFit(outer)
+        try:
+            return dialog.ShowModal() == wx.ID_OK
+        finally:
+            dialog.Destroy()
+
+    def _is_round_in_progress(self) -> bool:
+        if self.ui_mode != self.UI_MODE_ACTIVE or self.game is None:
+            return False
+        return not self.game.is_won() and not self.game.is_lost()
+
+    def on_new_game(self, _: wx.CommandEvent) -> None:
+        if self.ui_mode == self.UI_MODE_SETUP:
+            if self.start_session():
+                return
+            return
+
+        if self._is_round_in_progress() and not self._confirm_enter_setup_mode():
+            self._show_info(str(self.ui["session_kept_current"]), wx.ICON_INFORMATION)
+            return
+
+        self.pending_language_key = self.language_key or self.pending_language_key
+        self.pending_difficulty_key = self.difficulty_key or self.pending_difficulty_key
+        if self.pending_language_key and not self._load_ui_for_language(self.pending_language_key):
+            return
+        self.enter_setup_mode(reset_session=True)
 
     def on_submit_guess(self, _: wx.CommandEvent) -> None:
         if not self.round_input_enabled or self.game is None:
@@ -376,6 +603,7 @@ class HangpersonFrame(wx.Frame):
             return
 
         if self.game.is_won():
+            self.ui_mode = self.UI_MODE_ROUND_COMPLETE
             self._record_round_result(won=True)
             round_summary = str(self.ui["win_short"])
             self._set_guess_controls_enabled(False)
@@ -383,6 +611,7 @@ class HangpersonFrame(wx.Frame):
             return
 
         if self.game.is_lost():
+            self.ui_mode = self.UI_MODE_ROUND_COMPLETE
             self._record_round_result(won=False)
             round_summary = "\n".join(
                 [
@@ -465,76 +694,6 @@ class HangpersonFrame(wx.Frame):
         finally:
             dialog.Destroy()
 
-    def _show_choice_dialog(
-        self,
-        title: str,
-        choices: list[str],
-        prompt: str = "",
-        min_size: tuple[int, int] = (360, 260),
-    ) -> int | None:
-        dialog = wx.Dialog(self, title=title)
-
-        outer = wx.BoxSizer(wx.VERTICAL)
-        if prompt.strip():
-            prompt_text = wx.StaticText(dialog, label=prompt)
-            outer.Add(prompt_text, 0, wx.ALL, 10)
-
-        list_box = wx.ListBox(dialog, choices=choices)
-        # Size list area based on option count so all entries are visible by default.
-        row_height = max(24, list_box.GetCharHeight() + 8)
-        list_height = max(row_height * max(1, len(choices)) + 6, 80)
-        list_box.SetMinSize((-1, list_height))
-        if choices:
-            list_box.SetSelection(0)
-        outer.Add(list_box, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-
-        buttons = wx.BoxSizer(wx.HORIZONTAL)
-        cancel_button = wx.BitmapButton(
-            dialog,
-            wx.ID_CANCEL,
-            wx.ArtProvider.GetBitmap(wx.ART_CROSS_MARK, wx.ART_BUTTON, (20, 20)),
-        )
-        confirm_button = wx.BitmapButton(
-            dialog,
-            wx.ID_OK,
-            wx.ArtProvider.GetBitmap(wx.ART_TICK_MARK, wx.ART_BUTTON, (20, 20)),
-        )
-        cancel_button.SetToolTip("Cancel")
-        confirm_button.SetToolTip("Confirm")
-        buttons.Add(cancel_button, 0, wx.RIGHT, 10)
-        buttons.Add(confirm_button, 0)
-        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
-
-        def on_confirm(_: wx.CommandEvent) -> None:
-            if list_box.GetSelection() == wx.NOT_FOUND:
-                return
-            dialog.EndModal(wx.ID_OK)
-
-        def on_cancel(_: wx.CommandEvent) -> None:
-            dialog.EndModal(wx.ID_CANCEL)
-
-        def on_double_click(_: wx.CommandEvent) -> None:
-            on_confirm(_)
-
-        confirm_button.Bind(wx.EVT_BUTTON, on_confirm)
-        cancel_button.Bind(wx.EVT_BUTTON, on_cancel)
-        list_box.Bind(wx.EVT_LISTBOX_DCLICK, on_double_click)
-        dialog.SetEscapeId(wx.ID_CANCEL)
-        dialog.SetDefaultItem(confirm_button)
-        list_box.SetFocus()
-
-        min_w, min_h = min_size
-        prompt_h = 40 if prompt.strip() else 0
-        dynamic_min_h = list_height + prompt_h + 90
-        dialog.SetMinSize((min_w, max(min_h, dynamic_min_h)))
-        dialog.SetSizerAndFit(outer)
-        try:
-            if dialog.ShowModal() != wx.ID_OK:
-                return None
-            return list_box.GetSelection()
-        finally:
-            dialog.Destroy()
-
     def _record_round_result(self, won: bool) -> None:
         self.session_rounds_played += 1
         if won:
@@ -561,16 +720,110 @@ class HangpersonFrame(wx.Frame):
         self._set_guess_controls_enabled(True)
         self.draw_panel.Refresh()
 
+    def _configure_action_button(self) -> None:
+        if self.ui_mode == self.UI_MODE_SETUP:
+            start_icon: wx.Bitmap | None = None
+            if self.IsShownOnScreen():
+                start_icon = self._load_scaled_bitmap(
+                    self._assets_root() / "buttons" / "start_rocket.png",
+                    self.ACTION_BUTTON_IMAGE_SIZE,
+                )
+            try:
+                if start_icon is not None:
+                    self._set_action_button_bitmap(start_icon)
+                    self.new_game_button.SetLabel("")
+                else:
+                    # Fallback when bitmap assets are unavailable or too early to set.
+                    self._clear_action_button_bitmaps()
+                    self.new_game_button.SetLabel(str(self.ui["start_button"]))
+            except wx.PyAssertionError:
+                # GTK-safe fallback if image widget is not ready yet.
+                self._clear_action_button_bitmaps()
+                self.new_game_button.SetLabel(str(self.ui["start_button"]))
+            self.new_game_button.SetForegroundColour(wx.Colour(0, 110, 50))
+            self.new_game_button.SetToolTip(str(self.ui["start_button"]))
+        else:
+            restart_icon: wx.Bitmap | None = None
+            if self.IsShownOnScreen():
+                restart_icon = self._load_scaled_bitmap(
+                    self._assets_root() / "buttons" / "restart_arrow.png",
+                    self.ACTION_BUTTON_IMAGE_SIZE,
+                )
+            self._clear_action_button_bitmaps()
+            if restart_icon is not None:
+                self._set_action_button_bitmap(restart_icon)
+                self.new_game_button.SetLabel("")
+            else:
+                self.new_game_button.SetLabel("↻")
+            self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
+            self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
+        self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
+        self.new_game_button.SetMinSize((56, 44))
+        self.new_game_button.Refresh()
+
+    def _set_action_button_bitmap(self, bitmap: wx.Bitmap) -> None:
+        set_methods = [
+            "SetBitmap",
+            "SetBitmapLabel",
+            "SetBitmapCurrent",
+            "SetBitmapPressed",
+            "SetBitmapFocus",
+        ]
+        for method_name in set_methods:
+            method = getattr(self.new_game_button, method_name, None)
+            if method is None:
+                continue
+            try:
+                method(bitmap)
+            except Exception:
+                continue
+
+    def _clear_action_button_bitmaps(self) -> None:
+        transparent = wx.Bitmap(1, 1)
+        clear_methods = [
+            "SetBitmap",
+            "SetBitmapLabel",
+            "SetBitmapCurrent",
+            "SetBitmapPressed",
+            "SetBitmapDisabled",
+            "SetBitmapFocus",
+        ]
+        for method_name in clear_methods:
+            method = getattr(self.new_game_button, method_name, None)
+            if method is None:
+                continue
+            try:
+                method(transparent)
+            except Exception:
+                continue
+
+    def _update_badge_tooltips(self) -> None:
+        if self.ui_mode == self.UI_MODE_SETUP:
+            lang_tip = str(self.ui["language_click_hint"])
+            diff_tip = str(self.ui["difficulty_click_hint"])
+        else:
+            lang_tip = str(self.ui["settings_locked_hint"])
+            diff_tip = str(self.ui["settings_locked_hint"])
+
+        for widget in [self.language_badge_panel, self.language_badge_bitmap, self.language_badge_fallback]:
+            if widget is not None:
+                widget.SetToolTip(lang_tip)
+
+        for widget in [
+            self.difficulty_badge_panel,
+            self.difficulty_badge_bitmap,
+            self.difficulty_badge_fallback,
+        ]:
+            if widget is not None:
+                widget.SetToolTip(diff_tip)
+
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
         self.guess_prompt_label.SetLabel(str(self.ui["guess_prompt_label"]))
 
-        self.new_game_button.SetLabel("↻")
-        self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
-        self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
-        self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.new_game_button.SetMinSize((44, 34))
+        self._configure_action_button()
+        self._update_badge_tooltips()
 
     def _show_info(
         self, message: str, icon_flag: int = wx.ICON_WARNING, timeout_ms: int = 2200
@@ -603,7 +856,7 @@ class HangpersonFrame(wx.Frame):
         incorrect_letters = sorted(
             letter.upper()
             for letter in self.game.guessed_letters
-            if letter not in self.game.word
+            if not self.game.word_contains_guess(letter)
         )
         remaining_slots = max(self.max_errors - len(incorrect_letters), 0)
         return incorrect_letters + [self.GUESS_SLOT_SYMBOL] * remaining_slots
@@ -679,12 +932,22 @@ class HangpersonFrame(wx.Frame):
             self.bad_guess_cells[idx].SetLabel(value)
         self.bad_guess_slots_panel.Layout()
 
+    def _display_language_key(self) -> str:
+        if self.ui_mode == self.UI_MODE_SETUP:
+            return self.pending_language_key
+        return self.language_key
+
+    def _display_difficulty_key(self) -> str:
+        if self.ui_mode == self.UI_MODE_SETUP:
+            return self.pending_difficulty_key
+        return self.difficulty_key
+
     def _update_status_widgets(self) -> None:
         self.score_fraction_label.SetLabel(
             f"{self.session_rounds_won}\n—\n{self.session_rounds_played}"
         )
-        self._set_language_badge(self.language_key)
-        self._set_difficulty_badge(self.difficulty_key)
+        self._set_language_badge(self._display_language_key())
+        self._set_difficulty_badge(self._display_difficulty_key())
         self.status_panel.Layout()
 
     def _language_flag(self, key: str) -> str:

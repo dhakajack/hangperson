@@ -48,5 +48,14 @@
   "win_short": "You win!",
   "keyboard_input_hint": "Type a letter, then press Enter.",
   "letter_wrong_script": "Please use letters from the selected language alphabet.",
-  "guess_prompt_label": "Your Guess"
+  "guess_prompt_label": "Your Guess",
+  "setup_hint": "Click language and difficulty badges, then press Start.",
+  "language_click_hint": "Click to change language.",
+  "difficulty_click_hint": "Click to change difficulty.",
+  "settings_locked_hint": "To change language or difficulty, start a new game.",
+  "start_button": "Start",
+  "restart_confirm_title": "Reset Game?",
+  "restart_confirm_body": "Current round and session score will be reset. Press Cancel to keep playing, or OK to return to setup.",
+  "restart_confirm_ok_button": "OK",
+  "restart_confirm_cancel_button": "Cancel"
 }

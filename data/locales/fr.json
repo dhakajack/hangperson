@@ -48,5 +48,14 @@
   "win_short": "Vous gagnez !",
   "keyboard_input_hint": "Saisissez une lettre, puis appuyez sur Entrée.",
   "letter_wrong_script": "Veuillez utiliser uniquement les lettres de l'alphabet de la langue sélectionnée.",
-  "guess_prompt_label": "Votre proposition"
+  "guess_prompt_label": "Votre proposition",
+  "setup_hint": "Cliquez sur les badges langue et difficulté, puis appuyez sur Démarrer.",
+  "language_click_hint": "Cliquez pour changer la langue.",
+  "difficulty_click_hint": "Cliquez pour changer la difficulté.",
+  "settings_locked_hint": "Pour changer la langue ou la difficulté, démarrez une nouvelle partie.",
+  "start_button": "Démarrer",
+  "restart_confirm_title": "Réinitialiser la partie ?",
+  "restart_confirm_body": "Le tour en cours et le score de session seront réinitialisés. Appuyez sur Annuler pour continuer, ou sur OK pour revenir à la configuration.",
+  "restart_confirm_ok_button": "OK",
+  "restart_confirm_cancel_button": "Annuler"
 }

@@ -48,5 +48,14 @@
   "win_short": "Вы выиграли!",
   "keyboard_input_hint": "Введите букву, затем нажмите Enter.",
   "letter_wrong_script": "Используйте только буквы алфавита выбранного языка.",
-  "guess_prompt_label": "Ваш вариант"
+  "guess_prompt_label": "Ваш вариант",
+  "setup_hint": "Нажмите значки языка и сложности, затем нажмите Старт.",
+  "language_click_hint": "Нажмите, чтобы сменить язык.",
+  "difficulty_click_hint": "Нажмите, чтобы сменить сложность.",
+  "settings_locked_hint": "Чтобы изменить язык или сложность, начните новую игру.",
+  "start_button": "Старт",
+  "restart_confirm_title": "Сбросить игру?",
+  "restart_confirm_body": "Текущий раунд и счёт сессии будут сброшены. Нажмите Отмена, чтобы продолжить, или OK, чтобы вернуться к настройке.",
+  "restart_confirm_ok_button": "OK",
+  "restart_confirm_cancel_button": "Отмена"
 }

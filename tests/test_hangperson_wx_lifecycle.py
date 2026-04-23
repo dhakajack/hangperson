@@ -2,7 +2,10 @@ import pytest
 
 pytest.importorskip("wx")
 
+import json
+
 import hangperson_wx
+from hangperson import HangpersonGame
 from hangperson_wx import HangpersonFrame
 
 
@@ -148,3 +151,147 @@ def test_start_session_uses_scored_source_without_warning(
     assert frame.words == ["mountain"]
     assert frame.info_messages == []
     assert frame.started_round == 1
+
+
+class _FakeGuessSlotsFrame:
+    GUESS_SLOT_SYMBOL = HangpersonFrame.GUESS_SLOT_SYMBOL
+
+    def __init__(self, game: HangpersonGame, max_errors: int) -> None:
+        self.game = game
+        self.max_errors = max_errors
+
+
+def test_bad_guess_slots_do_not_mark_greek_sigma_as_incorrect() -> None:
+    game = HangpersonGame(word="κόσμος", max_errors=5)
+    game.apply_guess("σ")
+    frame = _FakeGuessSlotsFrame(game=game, max_errors=5)
+
+    slots = HangpersonFrame._format_guessed_slots(frame)  # type: ignore[arg-type]
+
+    assert slots == [HangpersonFrame.GUESS_SLOT_SYMBOL] * 5
+
+
+def test_cycle_choice_wraps_around() -> None:
+    assert HangpersonFrame._cycle_choice(["e", "f", "r", "el"], "el") == "e"
+    assert HangpersonFrame._cycle_choice(["1", "2", "3"], "2") == "3"
+
+
+class _FakeLanguageCycleFrame:
+    LANGUAGE_CYCLE = HangpersonFrame.LANGUAGE_CYCLE
+
+    def __init__(self) -> None:
+        self.pending_language_key = "e"
+        self.load_calls: list[str] = []
+        self.saved = False
+        self.applied = 0
+        self.updated = 0
+        self.refreshed = 0
+
+        class _Draw:
+            def __init__(self, outer: "_FakeLanguageCycleFrame") -> None:
+                self.outer = outer
+
+            def Refresh(self) -> None:
+                self.outer.refreshed += 1
+
+        self.draw_panel = _Draw(self)
+
+    def _can_change_settings(self) -> bool:
+        return True
+
+    def _show_locked_settings_hint_once(self) -> None:
+        raise AssertionError("Should not lock in setup mode.")
+
+    def _load_ui_for_language(self, language_key: str) -> bool:
+        self.load_calls.append(language_key)
+        return True
+
+    def _apply_localized_labels(self) -> None:
+        self.applied += 1
+
+    def _update_status_widgets(self) -> None:
+        self.updated += 1
+
+    def _save_preferences(self) -> None:
+        self.saved = True
+
+
+def test_language_badge_click_rotates_in_setup_mode() -> None:
+    frame = _FakeLanguageCycleFrame()
+    HangpersonFrame.on_language_badge_click(frame, None)  # type: ignore[arg-type]
+
+    assert frame.pending_language_key == "f"
+    assert frame.load_calls == ["f"]
+    assert frame.applied == 1
+    assert frame.updated == 1
+    assert frame.refreshed == 1
+    assert frame.saved is True
+
+
+class _FakeRestartCancelFrame:
+    UI_MODE_SETUP = HangpersonFrame.UI_MODE_SETUP
+    UI_MODE_ACTIVE = HangpersonFrame.UI_MODE_ACTIVE
+
+    def __init__(self) -> None:
+        self.ui_mode = self.UI_MODE_ACTIVE
+        self.game = HangpersonGame(word="planet", max_errors=6)
+        self.game.apply_guess("x")
+        self.ui = {"session_kept_current": "kept"}
+        self.info_messages: list[str] = []
+        self.pending_language_key = "e"
+        self.pending_difficulty_key = "2"
+        self.language_key = "e"
+        self.difficulty_key = "2"
+        self.enter_setup_calls = 0
+
+    def _is_round_in_progress(self) -> bool:
+        return True
+
+    def _confirm_enter_setup_mode(self) -> bool:
+        return False
+
+    def _show_info(self, message: str, icon_flag: int = 0) -> None:  # noqa: ARG002
+        self.info_messages.append(message)
+
+    def _load_ui_for_language(self, language_key: str) -> bool:  # noqa: ARG002
+        raise AssertionError("Should not load locale when restart is canceled.")
+
+    def enter_setup_mode(self, *, reset_session: bool, show_hint: bool = True) -> None:  # noqa: ARG002
+        self.enter_setup_calls += 1
+
+
+def test_on_new_game_cancel_keeps_active_round() -> None:
+    frame = _FakeRestartCancelFrame()
+    HangpersonFrame.on_new_game(frame, None)  # type: ignore[arg-type]
+
+    assert frame.info_messages == ["kept"]
+    assert frame.enter_setup_calls == 0
+
+
+class _FakePrefsFrame:
+    def __init__(self, prefs_path, pending_language_key: str, pending_difficulty_key: str):
+        self._path = prefs_path
+        self.pending_language_key = pending_language_key
+        self.pending_difficulty_key = pending_difficulty_key
+
+    def _prefs_path(self):
+        return self._path
+
+    def _is_valid_language_key(self, key: str) -> bool:
+        return HangpersonFrame._is_valid_language_key(key)
+
+    def _is_valid_difficulty_key(self, key: str) -> bool:
+        return HangpersonFrame._is_valid_difficulty_key(key)
+
+
+def test_preferences_round_trip_and_invalid_fallback(tmp_path) -> None:
+    path = tmp_path / "prefs.json"
+    frame = _FakePrefsFrame(path, "el", "3")
+
+    HangpersonFrame._save_preferences(frame)  # type: ignore[arg-type]
+    assert json.loads(path.read_text(encoding="utf-8")) == {"language": "el", "difficulty": "3"}
+
+    assert HangpersonFrame._load_preferences(frame) == ("el", "3")  # type: ignore[arg-type]
+
+    path.write_text(json.dumps({"language": "zzz", "difficulty": "9"}), encoding="utf-8")
+    assert HangpersonFrame._load_preferences(frame) == ("e", "2")  # type: ignore[arg-type]

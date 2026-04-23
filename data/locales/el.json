@@ -48,5 +48,14 @@
   "win_short": "Κέρδισες!",
   "keyboard_input_hint": "Πληκτρολόγησε ένα γράμμα και πάτησε Enter.",
   "letter_wrong_script": "Χρησιμοποίησε μόνο γράμματα του αλφαβήτου της επιλεγμένης γλώσσας.",
-  "guess_prompt_label": "Η πρότασή σου"
+  "guess_prompt_label": "Η πρότασή σου",
+  "setup_hint": "Πάτησε στα εικονίδια γλώσσας και δυσκολίας και μετά πάτησε Έναρξη.",
+  "language_click_hint": "Πάτησε για αλλαγή γλώσσας.",
+  "difficulty_click_hint": "Πάτησε για αλλαγή δυσκολίας.",
+  "settings_locked_hint": "Για να αλλάξεις γλώσσα ή δυσκολία, ξεκίνα νέο παιχνίδι.",
+  "start_button": "Έναρξη",
+  "restart_confirm_title": "Επαναφορά παιχνιδιού;",
+  "restart_confirm_body": "Ο τρέχων γύρος και το σκορ συνεδρίας θα μηδενιστούν. Πάτησε Ακύρωση για συνέχεια ή OK για επιστροφή στη ρύθμιση.",
+  "restart_confirm_ok_button": "OK",
+  "restart_confirm_cancel_button": "Ακύρωση"
 }

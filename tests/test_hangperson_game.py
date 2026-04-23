@@ -65,9 +65,10 @@ def test_is_letter_for_language_respects_selected_script() -> None:
 def test_greek_sigma_variants_are_treated_as_single_guess() -> None:
     game = HangpersonGame(word="κόσμος", max_errors=5)
 
-    # Entering terminal sigma should normalize to standard sigma.
+    # Unicode casefold normalizes terminal sigma to standard sigma.
     guess1 = normalize_guess_for_language("ς", "el")
     assert guess1 == "σ"
+    assert normalize_guess_for_language("Σ", "el") == "σ"
     assert game.apply_guess(guess1) == "correct"
     assert game.progress == ["-", "-", "Σ", "-", "-", "Σ"]
 

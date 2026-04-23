@@ -158,7 +158,8 @@ def load_frequency_data(freq_tsv_path: Path) -> FrequencyData:
                 f"Frequency TSV must include 'word' and 'count' columns: {freq_tsv_path}"
             )
         for row in reader:
-            word = str(row.get("word", "")).strip()
+            # Keep frequency keys aligned with candidate normalization (casefold).
+            word = str(row.get("word", "")).strip().casefold()
             if not word:
                 continue
             count_text = str(row.get("count", "")).strip()

@@ -141,3 +141,22 @@ def test_default_candidates_path_requires_explicit_greek_file() -> None:
         assert "provide --candidates" in str(exc)
     else:
         raise AssertionError("Expected ValueError for Greek default candidates path.")
+
+
+def test_load_frequency_data_casefolds_keys_for_greek_final_sigma(tmp_path: Path) -> None:
+    freq = tmp_path / "freq_el.tsv"
+    freq.write_text(
+        "\n".join(
+            [
+                "word\tcount",
+                "λογος\t7",
+                "ΛΟΓΟΣ\t5",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    data = load_frequency_data(freq)
+    assert data.total_tokens == 12
+    # Both rows canonicalize to λογοσ via casefold.
+    assert data.counts == {"λογοσ": 12}
