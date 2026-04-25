@@ -58,5 +58,7 @@
   "restart_confirm_body": "Current round and session score will be reset. Press Cancel to keep playing, or OK to return to setup.",
   "restart_confirm_ok_button": "OK",
   "restart_confirm_cancel_button": "Cancel",
-  "score_tooltip": "Score: won / rounds played"
+  "score_tooltip": "Score: won / rounds played",
+  "incorrect_guesses_tooltip": "Incorrect letters",
+  "target_word_tooltip": "Guess this word"
 }

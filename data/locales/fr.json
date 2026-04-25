@@ -58,5 +58,7 @@
   "restart_confirm_body": "Le tour en cours et le score de session seront réinitialisés. Appuyez sur Annuler pour continuer, ou sur OK pour revenir à la configuration.",
   "restart_confirm_ok_button": "OK",
   "restart_confirm_cancel_button": "Annuler",
-  "score_tooltip": "Score : gagnés / manches jouées"
+  "score_tooltip": "Score : gagnés / manches jouées",
+  "incorrect_guesses_tooltip": "Lettres incorrectes",
+  "target_word_tooltip": "Devinez ce mot"
 }

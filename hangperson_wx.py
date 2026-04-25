@@ -939,9 +939,20 @@ class HangpersonFrame(wx.Frame):
         score_tip = str(self.ui.get("score_tooltip", "Score: won / rounds played"))
         self.trophy_label.SetToolTip(score_tip)
         self.score_fraction_label.SetToolTip(score_tip)
+        self._apply_game_area_tooltips()
 
         self._configure_action_button()
         self._update_badge_tooltips()
+
+    def _apply_game_area_tooltips(self) -> None:
+        incorrect_tip = str(self.ui.get("incorrect_guesses_tooltip", "Incorrect letters"))
+        target_tip = str(self.ui.get("target_word_tooltip", "Guess this word"))
+        self.word_slots_panel.SetToolTip(target_tip)
+        self.bad_guess_slots_panel.SetToolTip(incorrect_tip)
+        for cell in self.word_slot_cells:
+            cell.SetToolTip(target_tip)
+        for cell in self.bad_guess_cells:
+            cell.SetToolTip(incorrect_tip)
 
     def _show_info(
         self, message: str, icon_flag: int = wx.ICON_WARNING, timeout_ms: int = 2200
@@ -982,6 +993,8 @@ class HangpersonFrame(wx.Frame):
     def _build_word_slots(self, slot_count: int) -> None:
         self.word_slots_sizer.Clear(delete_windows=True)
         self.word_slot_cells = []
+        target_tip = str(self.ui.get("target_word_tooltip", "Guess this word"))
+        self.word_slots_panel.SetToolTip(target_tip)
         for _ in range(slot_count):
             border = wx.Panel(self.word_slots_panel)
             border.SetBackgroundColour(wx.Colour(28, 62, 89))
@@ -994,6 +1007,7 @@ class HangpersonFrame(wx.Frame):
                 label="",
                 style=wx.ALIGN_CENTER,
             )
+            inner.SetToolTip(target_tip)
             inner.SetFont(wx.Font(wx.FontInfo(20).Bold()))
             inner.SetForegroundColour(wx.Colour(22, 38, 53))
             inner.SetMinSize((24, 30))
@@ -1028,6 +1042,8 @@ class HangpersonFrame(wx.Frame):
             return
         sizer.Clear(delete_windows=True)
         self.bad_guess_cells = []
+        incorrect_tip = str(self.ui.get("incorrect_guesses_tooltip", "Incorrect letters"))
+        self.bad_guess_slots_panel.SetToolTip(incorrect_tip)
         sizer.AddStretchSpacer(1)
         for _ in range(slot_count):
             slot = wx.StaticText(
@@ -1035,6 +1051,7 @@ class HangpersonFrame(wx.Frame):
                 label=self.GUESS_SLOT_SYMBOL,
                 style=wx.ALIGN_CENTER_HORIZONTAL | wx.ST_NO_AUTORESIZE | wx.BORDER_SIMPLE,
             )
+            slot.SetToolTip(incorrect_tip)
             slot.SetMinSize((28, 40))
             slot.SetFont(wx.Font(wx.FontInfo(18).Bold()))
             sizer.Add(slot, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 4)

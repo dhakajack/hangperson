@@ -58,5 +58,7 @@
   "restart_confirm_body": "Ο τρέχων γύρος και το σκορ συνεδρίας θα μηδενιστούν. Πάτησε Ακύρωση για συνέχεια ή OK για επιστροφή στη ρύθμιση.",
   "restart_confirm_ok_button": "OK",
   "restart_confirm_cancel_button": "Ακύρωση",
-  "score_tooltip": "Σκορ: νίκες / γύροι που παίχτηκαν"
+  "score_tooltip": "Σκορ: νίκες / γύροι που παίχτηκαν",
+  "incorrect_guesses_tooltip": "Λανθασμένα γράμματα",
+  "target_word_tooltip": "Μάντεψε αυτή τη λέξη"
 }

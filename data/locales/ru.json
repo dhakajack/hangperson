@@ -58,5 +58,7 @@
   "restart_confirm_body": "Текущий раунд и счёт сессии будут сброшены. Нажмите Отмена, чтобы продолжить, или OK, чтобы вернуться к настройке.",
   "restart_confirm_ok_button": "OK",
   "restart_confirm_cancel_button": "Отмена",
-  "score_tooltip": "Счёт: побед / сыграно раундов"
+  "score_tooltip": "Счёт: побед / сыграно раундов",
+  "incorrect_guesses_tooltip": "Неверные буквы",
+  "target_word_tooltip": "Угадайте это слово"
 }
