@@ -9,28 +9,29 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app_paths import data_path
 from scored_words import ScoreWordSourceError, load_scored_words_for_difficulty
 
 LANGUAGE_SETTINGS: dict[str, dict[str, str | Path]] = {
     "e": {
         "name": "English",
-        "words_file": Path("data/words_en.txt"),
-        "locale_file": Path("data/locales/en.json"),
+        "words_file": data_path("words_en.txt"),
+        "locale_file": data_path("locales", "en.json"),
     },
     "f": {
         "name": "Français",
-        "words_file": Path("data/words_fr.txt"),
-        "locale_file": Path("data/locales/fr.json"),
+        "words_file": data_path("words_fr.txt"),
+        "locale_file": data_path("locales", "fr.json"),
     },
     "r": {
         "name": "Русский",
-        "words_file": Path("data/words_ru.txt"),
-        "locale_file": Path("data/locales/ru.json"),
+        "words_file": data_path("words_ru.txt"),
+        "locale_file": data_path("locales", "ru.json"),
     },
     "el": {
         "name": "Ελληνικά",
-        "words_file": Path("data/words_el.txt"),
-        "locale_file": Path("data/locales/el.json"),
+        "words_file": data_path("words_el.txt"),
+        "locale_file": data_path("locales", "el.json"),
     },
 }
 

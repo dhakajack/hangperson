@@ -9,6 +9,11 @@ __pycache__/
 # Test/cache tooling
 .pytest_cache/
 
+# Packaging output
+build/
+dist/
+*.spec.cache
+
 # Editor settings
 .vscode/
 

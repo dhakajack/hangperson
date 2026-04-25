@@ -1,3 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hangperson"
+version = "0.1.0"
+description = "A wxPython Hangman variant with multilingual word lists and difficulty bands."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "jwelch"}]
+dependencies = ["wxPython>=4.2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+release = ["pyinstaller>=6.0"]
+
+[project.gui-scripts]
+hangperson-wx = "hangperson_wx:main"
+
+[project.scripts]
+hangperson-cli = "hangperson:main"
+
+[tool.setuptools]
+py-modules = ["app_paths", "hangperson", "hangperson_wx", "scored_words"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

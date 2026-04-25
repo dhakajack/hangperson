@@ -9,6 +9,7 @@ from pathlib import Path
 import wx
 import wx.adv
 
+from app_paths import assets_images_path
 from hangperson import (
     DIFFICULTY_SETTINGS,
     LANGUAGE_SETTINGS,
@@ -1161,7 +1162,7 @@ class HangpersonFrame(wx.Frame):
         }.get(key, "?")
 
     def _assets_root(self) -> Path:
-        return Path(__file__).resolve().parent / "assets" / "images"
+        return assets_images_path()
 
     def _load_scaled_bitmap(self, path: Path, size: tuple[int, int]) -> wx.Bitmap | None:
         if not path.exists():

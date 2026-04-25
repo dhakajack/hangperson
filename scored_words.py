@@ -6,6 +6,7 @@ import csv
 import unicodedata
 from pathlib import Path
 
+from app_paths import data_path
 
 DIFFICULTY_TO_BAND: dict[str, str] = {
     "1": "easy",
@@ -14,10 +15,10 @@ DIFFICULTY_TO_BAND: dict[str, str] = {
 }
 
 LANGUAGE_TO_TSV: dict[str, Path] = {
-    "e": Path("data/difficulty/en_difficulty.tsv"),
-    "f": Path("data/difficulty/fr_difficulty.tsv"),
-    "r": Path("data/difficulty/ru_difficulty.tsv"),
-    "el": Path("data/difficulty/el_difficulty.tsv"),
+    "e": data_path("difficulty", "en_difficulty.tsv"),
+    "f": data_path("difficulty", "fr_difficulty.tsv"),
+    "r": data_path("difficulty", "ru_difficulty.tsv"),
+    "el": data_path("difficulty", "el_difficulty.tsv"),
 }
 
 VALID_BANDS = frozenset({"easy", "medium", "hard"})

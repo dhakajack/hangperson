@@ -1,6 +1,8 @@
-# Hangperson CLI (Codex Starter Project)
+# Hangperson (wxPython Desktop Game)
 
-A simple command-line Hangperson game in Python.
+A multilingual Hangman variant in Python with a wxPython desktop UI, conservative native-style widgets, and bundled image/data assets for English, French, Russian, and Greek play.
+
+The CLI version is still included for development and debugging, but the main end-user target is now the desktop app in `hangperson_wx.py`.
 
 ## What it does
 
@@ -22,37 +24,32 @@ A simple command-line Hangperson game in Python.
 - Ends game after the difficulty-specific incorrect guess limit
 - Prompts with numeric replay controls: `1` to play again, `0` to quit
 
-## Run
+## Run The Desktop App
 
-```bash
-python3 hangperson.py
-```
-
-## Run (wxPython GUI Skeleton)
-
-Install wxPython (once):
+Install the app dependency once:
 
 ```bash
 python3 -m pip install wxPython
 ```
 
-Run the GUI:
+Launch the GUI:
 
 ```bash
 python3 hangperson_wx.py
 ```
 
-The GUI currently uses tinted layout regions for development:
-- left-top: drawing placeholder area
-- left-bottom: game prompts/output and guess input
-- right: guessed letters list (one letter per line)
+## Run The CLI
+
+```bash
+python3 hangperson.py
+```
 
 ## Test (pytest)
 
 Install dev dependencies:
 
 ```bash
-python3 -m pip install -r requirements-dev.txt
+python3 -m pip install -e ".[dev]"
 ```
 
 Run tests:
@@ -60,6 +57,72 @@ Run tests:
 ```bash
 python3 -m pytest -q
 ```
+
+## Release / Packaging
+
+The recommended release path for this project is **PyInstaller**, building **native artifacts on each target OS**:
+
+- macOS: build a `.app` bundle first, then optionally wrap it in a `.dmg`
+- Windows: build a windowed `.exe` distribution folder first, then optionally add an installer
+- Linux: build a distribution folder first, then optionally add AppImage later
+
+### Why PyInstaller first
+
+- Good fit for a wxPython desktop app
+- Handles bundled `assets/` and `data/` directories well
+- Simpler and more proven for a first "double-click and run" release than Nuitka
+- Lets you stabilize a bundle/app build before experimenting with one-file packaging
+
+### Build workflow
+
+This is best thought of as **release-time post-processing**. You can absolutely run the commands from the VS Code integrated terminal, but the build itself should happen on the target operating system:
+
+- build macOS artifacts on macOS
+- build Windows artifacts on Windows
+- build Linux artifacts on Linux
+
+### Install release tooling
+
+```bash
+python3 -m pip install -e ".[release]"
+```
+
+### Build with PyInstaller
+
+Use the included spec file:
+
+```bash
+pyinstaller hangperson_wx.spec
+```
+
+This produces a windowed desktop build and bundles the project's `assets/` and `data/` directories with it.
+
+### Output expectations
+
+- macOS: `dist/Hangperson.app`
+- Windows/Linux: `dist/Hangperson/`
+
+### First release recommendation
+
+Start with the default bundled build rather than true one-file packaging:
+
+- easier to debug
+- more reliable for wxPython
+- fewer surprises around temporary extraction and asset loading
+
+Once the bundled build is stable on each platform, you can optionally evaluate one-file mode or Nuitka as a second-stage experiment.
+
+### Release smoke checks
+
+Before publishing a build, verify:
+
+- the app launches on a machine without a Python checkout of the repo
+- language and difficulty badge images render
+- character/body-part image assets load during gameplay
+- locale JSON and difficulty TSV files are found
+- the preferences file can be written in the user config directory
+- the GUI launches without an unwanted terminal window
+- at least one round completes in each supported language
 
 Simple TDD loop:
 
