@@ -32,6 +32,20 @@ class HangpersonFrame(wx.Frame):
     LANGUAGE_IMAGE_SIZE = (120, 60)
     DIFFICULTY_IMAGE_SIZE = (120, 92)
     ACTION_BUTTON_IMAGE_SIZE = (27, 27)
+    COLOR_BG_BASE = (242, 245, 249)
+    COLOR_BG_DRAW = (232, 237, 245)
+    COLOR_BG_BOTTOM = (236, 244, 236)
+    COLOR_BG_STATUS = (232, 237, 243)
+    COLOR_BG_BAD_GUESS_RAIL = (224, 231, 241)
+    COLOR_BG_BAD_GUESS_SLOTS = (232, 238, 246)
+    COLOR_BG_DRAW_SURFACE_TOP = (245, 248, 252)
+    COLOR_BG_DRAW_SURFACE_BOTTOM = (234, 239, 247)
+    COLOR_BORDER_DRAW_SURFACE = (108, 122, 141)
+    COLOR_BORDER_DRAW_SURFACE_INNER = (171, 181, 195)
+    COLOR_TEXT_PRIMARY = (22, 38, 53)
+    COLOR_WORD_SLOT_BORDER = (28, 62, 89)
+    COLOR_WORD_SLOT_FILL = (246, 252, 246)
+    WORD_SLOTS_PANEL_MIN_HEIGHT = 60
 
     LANGUAGE_CYCLE = ["e", "f", "r", "el"]
     DIFFICULTY_CYCLE = ["1", "2", "3"]
@@ -237,17 +251,19 @@ class HangpersonFrame(wx.Frame):
 
     def _build_layout(self) -> None:
         root = wx.Panel(self)
+        root.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BASE))
         root_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         gameplay_panel = wx.Panel(root)
+        gameplay_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BASE))
         gameplay_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.draw_panel = wx.Panel(gameplay_panel)
-        self.draw_panel.SetBackgroundColour(wx.Colour(220, 235, 255))
+        self.draw_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_DRAW))
         self.draw_panel.Bind(wx.EVT_PAINT, self.on_paint_draw_panel)
 
         self.bottom_panel = wx.Panel(gameplay_panel)
-        self.bottom_panel.SetBackgroundColour(wx.Colour(225, 245, 225))
+        self.bottom_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BOTTOM))
         self._build_bottom_panel(self.bottom_panel)
 
         gameplay_sizer.Add(self.draw_panel, 5, wx.EXPAND | wx.ALL, 8)
@@ -255,17 +271,17 @@ class HangpersonFrame(wx.Frame):
         gameplay_panel.SetSizer(gameplay_sizer)
 
         self.status_panel = wx.Panel(root)
-        self.status_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self.status_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
         self._build_status_panel(self.status_panel)
         self.status_panel.SetMinSize((170, -1))
 
         bad_guess_panel = wx.Panel(root)
         bad_guess_panel.SetMinSize((64, -1))
-        bad_guess_panel.SetBackgroundColour(wx.Colour(245, 248, 250))
+        bad_guess_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BAD_GUESS_RAIL))
         bad_guess_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.bad_guess_slots_panel = wx.Panel(bad_guess_panel)
-        self.bad_guess_slots_panel.SetBackgroundColour(wx.Colour(250, 250, 250))
+        self.bad_guess_slots_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BAD_GUESS_SLOTS))
         self.bad_guess_slots_panel.SetMinSize((48, -1))
         slots_sizer = wx.BoxSizer(wx.VERTICAL)
         self.bad_guess_slots_panel.SetSizer(slots_sizer)
@@ -300,7 +316,7 @@ class HangpersonFrame(wx.Frame):
         score_row.Add(self.score_fraction_label, 0, wx.ALIGN_CENTER_VERTICAL)
 
         self.language_badge_panel = wx.Panel(panel)
-        self.language_badge_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self.language_badge_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
         self.language_badge_panel.SetMinSize((0, 66))
         language_badge_sizer = wx.BoxSizer(wx.VERTICAL)
         self.language_badge_bitmap = wx.StaticBitmap(
@@ -310,7 +326,7 @@ class HangpersonFrame(wx.Frame):
             self.language_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
         )
         self.language_badge_fallback.SetFont(wx.Font(wx.FontInfo(18).Bold()))
-        self.language_badge_fallback.SetForegroundColour(wx.Colour(22, 38, 53))
+        self.language_badge_fallback.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
         language_badge_sizer.AddStretchSpacer(1)
         language_badge_sizer.Add(self.language_badge_bitmap, 0, wx.ALIGN_CENTER_HORIZONTAL)
         language_badge_sizer.Add(self.language_badge_fallback, 0, wx.ALIGN_CENTER_HORIZONTAL)
@@ -318,7 +334,7 @@ class HangpersonFrame(wx.Frame):
         self.language_badge_panel.SetSizer(language_badge_sizer)
 
         self.difficulty_badge_panel = wx.Panel(panel)
-        self.difficulty_badge_panel.SetBackgroundColour(wx.Colour(241, 236, 198))
+        self.difficulty_badge_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
         self.difficulty_badge_panel.SetMinSize((0, 98))
         difficulty_badge_sizer = wx.BoxSizer(wx.VERTICAL)
         self.difficulty_badge_bitmap = wx.StaticBitmap(
@@ -328,7 +344,7 @@ class HangpersonFrame(wx.Frame):
             self.difficulty_badge_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
         )
         self.difficulty_badge_fallback.SetFont(wx.Font(wx.FontInfo(18).Bold()))
-        self.difficulty_badge_fallback.SetForegroundColour(wx.Colour(22, 38, 53))
+        self.difficulty_badge_fallback.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
         difficulty_badge_sizer.AddStretchSpacer(1)
         difficulty_badge_sizer.Add(self.difficulty_badge_bitmap, 0, wx.ALIGN_CENTER_HORIZONTAL)
         difficulty_badge_sizer.Add(self.difficulty_badge_fallback, 0, wx.ALIGN_CENTER_HORIZONTAL)
@@ -344,19 +360,26 @@ class HangpersonFrame(wx.Frame):
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
         self.guess_prompt_label = wx.StaticText(panel, label="")
         self.guess_prompt_label.SetFont(wx.Font(wx.FontInfo(10).Bold()))
-        self.guess_prompt_label.SetForegroundColour(wx.Colour(22, 38, 53))
+        self.guess_prompt_label.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
 
-        sizer.Add(score_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
-        sizer.Add(self.language_badge_panel, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 12)
-        sizer.Add(
-            self.difficulty_badge_panel, 0, wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT, 12
-        )
-        sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 12)
+        guess_area = wx.BoxSizer(wx.VERTICAL)
+        guess_area.Add(self.guess_prompt_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        guess_area.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+
+        # Keep middle elements tighter together while reserving larger outer margins.
+        sizer.AddStretchSpacer(2)
+        sizer.Add(score_row, 0, wx.ALIGN_CENTER_HORIZONTAL)
         sizer.AddStretchSpacer(1)
-        sizer.Add(self.guess_prompt_label, 0, wx.LEFT | wx.RIGHT, 12)
-        sizer.AddSpacer(4)
-        sizer.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
-        sizer.AddSpacer(12)
+        sizer.Add(self.language_badge_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+        sizer.AddStretchSpacer(1)
+        sizer.Add(
+            self.difficulty_badge_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12
+        )
+        sizer.AddStretchSpacer(1)
+        sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        sizer.AddStretchSpacer(1)
+        sizer.Add(guess_area, 0, wx.EXPAND)
+        sizer.AddStretchSpacer(2)
 
         panel.SetSizer(sizer)
 
@@ -386,7 +409,9 @@ class HangpersonFrame(wx.Frame):
         left_row = wx.BoxSizer(wx.HORIZONTAL)
 
         self.word_slots_panel = wx.Panel(panel)
-        self.word_slots_panel.SetBackgroundColour(wx.Colour(225, 245, 225))
+        self.word_slots_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BOTTOM))
+        # Reserve vertical space so the drawing area does not jump when slots appear.
+        self.word_slots_panel.SetMinSize((-1, self.WORD_SLOTS_PANEL_MIN_HEIGHT))
         self.word_slots_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.word_slots_panel.SetSizer(self.word_slots_sizer)
 
@@ -405,9 +430,26 @@ class HangpersonFrame(wx.Frame):
         dc.Clear()
 
         w, h = self.draw_panel.GetClientSize()
-        dc.SetPen(wx.Pen(wx.Colour(90, 90, 90), 2))
-        dc.SetBrush(wx.Brush(wx.Colour(240, 245, 255)))
-        dc.DrawRectangle(12, 12, max(w - 24, 20), max(h - 24, 20))
+        outer_rect = wx.Rect(12, 12, max(w - 24, 20), max(h - 24, 20))
+        # Gentle vertical gradient keeps focus without looking flat/debug-like.
+        dc.GradientFillLinear(
+            outer_rect,
+            wx.Colour(*self.COLOR_BG_DRAW_SURFACE_TOP),
+            wx.Colour(*self.COLOR_BG_DRAW_SURFACE_BOTTOM),
+            wx.SOUTH,
+        )
+        dc.SetPen(wx.Pen(wx.Colour(*self.COLOR_BORDER_DRAW_SURFACE), 1))
+        dc.SetBrush(wx.TRANSPARENT_BRUSH)
+        dc.DrawRectangle(outer_rect)
+        # Subtle inner keyline for card-like depth.
+        inner_rect = wx.Rect(
+            outer_rect.x + 4,
+            outer_rect.y + 4,
+            max(outer_rect.width - 8, 8),
+            max(outer_rect.height - 8, 8),
+        )
+        dc.SetPen(wx.Pen(wx.Colour(*self.COLOR_BORDER_DRAW_SURFACE_INNER), 1))
+        dc.DrawRectangle(inner_rect)
         self._paint_character_stack(dc=dc, panel_width=w, panel_height=h)
 
     @staticmethod
@@ -475,7 +517,8 @@ class HangpersonFrame(wx.Frame):
         draw_w = stacked_bitmaps[0].GetWidth()
         draw_h = stacked_bitmaps[0].GetHeight()
         x = max((panel_width - draw_w) // 2, 16)
-        y = max((panel_height - draw_h) // 2 + 18, 74)
+        # Keep character visually grounded by anchoring near bottom of drawing surface.
+        y = max(panel_height - draw_h - 34, 74)
 
         for bitmap in stacked_bitmaps:
             dc.DrawBitmap(bitmap, x, y, useMask=True)
@@ -997,9 +1040,9 @@ class HangpersonFrame(wx.Frame):
         self.word_slots_panel.SetToolTip(target_tip)
         for _ in range(slot_count):
             border = wx.Panel(self.word_slots_panel)
-            border.SetBackgroundColour(wx.Colour(28, 62, 89))
+            border.SetBackgroundColour(wx.Colour(*self.COLOR_WORD_SLOT_BORDER))
             content = wx.Panel(border)
-            content.SetBackgroundColour(wx.Colour(246, 252, 246))
+            content.SetBackgroundColour(wx.Colour(*self.COLOR_WORD_SLOT_FILL))
             content.SetMinSize((34, 48))
 
             inner = wx.StaticText(
@@ -1009,7 +1052,7 @@ class HangpersonFrame(wx.Frame):
             )
             inner.SetToolTip(target_tip)
             inner.SetFont(wx.Font(wx.FontInfo(20).Bold()))
-            inner.SetForegroundColour(wx.Colour(22, 38, 53))
+            inner.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
             inner.SetMinSize((24, 30))
 
             content_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -1052,6 +1095,8 @@ class HangpersonFrame(wx.Frame):
                 style=wx.ALIGN_CENTER_HORIZONTAL | wx.ST_NO_AUTORESIZE | wx.BORDER_SIMPLE,
             )
             slot.SetToolTip(incorrect_tip)
+            slot.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BAD_GUESS_SLOTS))
+            slot.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
             slot.SetMinSize((28, 40))
             slot.SetFont(wx.Font(wx.FontInfo(18).Bold()))
             sizer.Add(slot, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 4)
