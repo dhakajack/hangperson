@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 pytest.importorskip("wx")
@@ -295,3 +297,104 @@ def test_preferences_round_trip_and_invalid_fallback(tmp_path) -> None:
 
     path.write_text(json.dumps({"language": "zzz", "difficulty": "9"}), encoding="utf-8")
     assert HangpersonFrame._load_preferences(frame) == ("e", "2")  # type: ignore[arg-type]
+
+
+def test_revealed_parts_for_errors_easy_medium_hard() -> None:
+    assert HangpersonFrame._revealed_parts_for_errors(0, "1") == []
+    assert HangpersonFrame._revealed_parts_for_errors(2, "1") == ["head", "left_eye"]
+    assert HangpersonFrame._revealed_parts_for_errors(3, "2") == [
+        "head",
+        "left_eye",
+        "right_eye",
+        "nose",
+        "mouth",
+    ]
+    assert HangpersonFrame._revealed_parts_for_errors(5, "3") == [
+        "head",
+        "left_eye",
+        "right_eye",
+        "nose",
+        "mouth",
+        "shirt",
+        "left_arm",
+        "right_arm",
+    ]
+
+
+class _FakeLayerStateFrame:
+    UI_MODE_SETUP = HangpersonFrame.UI_MODE_SETUP
+    UI_MODE_ACTIVE = HangpersonFrame.UI_MODE_ACTIVE
+    CHARACTER_BASE_KEY = HangpersonFrame.CHARACTER_BASE_KEY
+    CHARACTER_DEAD_KEY = HangpersonFrame.CHARACTER_DEAD_KEY
+
+    def __init__(self, mode: str, errors: int, lost: bool, difficulty_key: str) -> None:
+        self.ui_mode = mode
+        self.difficulty_key = difficulty_key
+        if mode == self.UI_MODE_SETUP:
+            self.game = None
+        else:
+            game = HangpersonGame(word="planet", max_errors=10)
+            game.errors = errors
+            if lost:
+                game.max_errors = errors
+            self.game = game
+
+    def _revealed_parts_for_errors(self, errors: int, difficulty_key: str) -> list[str]:
+        return HangpersonFrame._revealed_parts_for_errors(errors, difficulty_key)
+
+
+def test_current_character_layer_keys_setup_has_no_layers() -> None:
+    frame = _FakeLayerStateFrame(mode=HangpersonFrame.UI_MODE_SETUP, errors=0, lost=False, difficulty_key="1")
+    assert HangpersonFrame._current_character_layer_keys(frame) == ["silhouette"]  # type: ignore[arg-type]
+
+
+def test_current_character_layer_keys_includes_dead_overlay_on_loss() -> None:
+    frame = _FakeLayerStateFrame(mode=HangpersonFrame.UI_MODE_ACTIVE, errors=6, lost=True, difficulty_key="3")
+    layers = HangpersonFrame._current_character_layer_keys(frame)  # type: ignore[arg-type]
+    assert layers[0] == "silhouette"
+    assert layers[-1] == "dead"
+
+
+class _FakeAssetPathFrame:
+    def __init__(self, root: Path) -> None:
+        self._root = root
+
+    def _assets_root(self) -> Path:
+        return self._root
+
+    def _people_assets_root(self, language_key: str) -> Path:
+        return HangpersonFrame._people_assets_root(self, language_key)  # type: ignore[misc]
+
+    def _character_filename(self, language_key: str, asset_key: str) -> str:
+        return HangpersonFrame._character_filename(language_key, asset_key)
+
+
+def test_character_asset_path_resolution() -> None:
+    frame = _FakeAssetPathFrame(Path("/tmp/assets/images"))
+    assert (
+        HangpersonFrame._character_asset_path(frame, "e", "head")  # type: ignore[arg-type]
+        == Path("/tmp/assets/images/people/en/head_en.png")
+    )
+
+
+class _FakeBitmapLoadFrame:
+    def __init__(self) -> None:
+        self._character_bitmap_cache: dict[tuple[str, str, tuple[int, int]], object | None] = {}
+        self.load_calls = 0
+
+    def _character_asset_path(self, language_key: str, asset_key: str) -> Path:
+        return Path(f"/does/not/exist/{language_key}/{asset_key}.png")
+
+    def _load_scaled_bitmap(self, path: Path, size: tuple[int, int]):  # noqa: ARG002
+        self.load_calls += 1
+        return None
+
+
+def test_load_character_bitmap_caches_missing_result() -> None:
+    frame = _FakeBitmapLoadFrame()
+    size = (320, 320)
+    first = HangpersonFrame._load_character_bitmap(frame, "en", "head", size)  # type: ignore[arg-type]
+    second = HangpersonFrame._load_character_bitmap(frame, "en", "head", size)  # type: ignore[arg-type]
+    assert first is None
+    assert second is None
+    assert frame.load_calls == 1

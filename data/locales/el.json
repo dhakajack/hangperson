@@ -57,5 +57,6 @@
   "restart_confirm_title": "Επαναφορά παιχνιδιού;",
   "restart_confirm_body": "Ο τρέχων γύρος και το σκορ συνεδρίας θα μηδενιστούν. Πάτησε Ακύρωση για συνέχεια ή OK για επιστροφή στη ρύθμιση.",
   "restart_confirm_ok_button": "OK",
-  "restart_confirm_cancel_button": "Ακύρωση"
+  "restart_confirm_cancel_button": "Ακύρωση",
+  "score_tooltip": "Σκορ: νίκες / γύροι που παίχτηκαν"
 }

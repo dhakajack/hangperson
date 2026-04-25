@@ -57,5 +57,6 @@
   "restart_confirm_title": "Сбросить игру?",
   "restart_confirm_body": "Текущий раунд и счёт сессии будут сброшены. Нажмите Отмена, чтобы продолжить, или OK, чтобы вернуться к настройке.",
   "restart_confirm_ok_button": "OK",
-  "restart_confirm_cancel_button": "Отмена"
+  "restart_confirm_cancel_button": "Отмена",
+  "score_tooltip": "Счёт: побед / сыграно раундов"
 }

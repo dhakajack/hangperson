@@ -35,6 +35,61 @@ class HangpersonFrame(wx.Frame):
 
     LANGUAGE_CYCLE = ["e", "f", "r", "el"]
     DIFFICULTY_CYCLE = ["1", "2", "3"]
+    LANGUAGE_KEY_TO_ASSET_CODE = {
+        "e": "en",
+        "f": "fr",
+        "r": "ru",
+        "el": "el",
+    }
+    CHARACTER_BASE_KEY = "silhouette"
+    CHARACTER_DEAD_KEY = "dead"
+    CHARACTER_PART_KEYS = (
+        "head",
+        "left_eye",
+        "right_eye",
+        "nose",
+        "mouth",
+        "shirt",
+        "left_arm",
+        "right_arm",
+        "left_leg",
+        "right_leg",
+    )
+    REVEAL_GROUPS_BY_DIFFICULTY: dict[str, tuple[tuple[str, ...], ...]] = {
+        # 10 steps
+        "1": (
+            ("head",),
+            ("left_eye",),
+            ("right_eye",),
+            ("nose",),
+            ("mouth",),
+            ("shirt",),
+            ("left_arm",),
+            ("right_arm",),
+            ("left_leg",),
+            ("right_leg",),
+        ),
+        # 8 steps (eyes together, nose+mouth together)
+        "2": (
+            ("head",),
+            ("left_eye", "right_eye"),
+            ("nose", "mouth"),
+            ("shirt",),
+            ("left_arm",),
+            ("right_arm",),
+            ("left_leg",),
+            ("right_leg",),
+        ),
+        # 6 steps (medium merges + both arms together + both legs together)
+        "3": (
+            ("head",),
+            ("left_eye", "right_eye"),
+            ("nose", "mouth"),
+            ("shirt",),
+            ("left_arm", "right_arm"),
+            ("left_leg", "right_leg"),
+        ),
+    }
 
     def __init__(self) -> None:
         super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
@@ -67,6 +122,7 @@ class HangpersonFrame(wx.Frame):
         self.language_badge_fallback: wx.StaticText | None = None
         self.difficulty_badge_bitmap: wx.StaticBitmap | None = None
         self.difficulty_badge_fallback: wx.StaticText | None = None
+        self._character_bitmap_cache: dict[tuple[str, str, tuple[int, int]], wx.Bitmap | None] = {}
 
         self._build_layout()
         self.Centre()
@@ -90,6 +146,21 @@ class HangpersonFrame(wx.Frame):
     @staticmethod
     def _is_valid_difficulty_key(difficulty_key: str) -> bool:
         return difficulty_key in DIFFICULTY_SETTINGS
+
+    @classmethod
+    def _reveal_groups_for_difficulty(cls, difficulty_key: str) -> tuple[tuple[str, ...], ...]:
+        return cls.REVEAL_GROUPS_BY_DIFFICULTY.get(difficulty_key, cls.REVEAL_GROUPS_BY_DIFFICULTY["2"])
+
+    @classmethod
+    def _revealed_parts_for_errors(cls, errors: int, difficulty_key: str) -> list[str]:
+        if errors <= 0:
+            return []
+        groups = cls._reveal_groups_for_difficulty(difficulty_key)
+        visible_groups = groups[: min(errors, len(groups))]
+        parts: list[str] = []
+        for group in visible_groups:
+            parts.extend(group)
+        return parts
 
     def _prefs_path(self) -> Path:
         config_dir = Path(wx.StandardPaths.Get().GetUserConfigDir()) / "codex1"
@@ -337,33 +408,77 @@ class HangpersonFrame(wx.Frame):
         dc.SetPen(wx.Pen(wx.Colour(90, 90, 90), 2))
         dc.SetBrush(wx.Brush(wx.Colour(240, 245, 255)))
         dc.DrawRectangle(12, 12, max(w - 24, 20), max(h - 24, 20))
+        self._paint_character_stack(dc=dc, panel_width=w, panel_height=h)
 
-        title = str(self.ui.get("drawing_area_title", "Hangperson Drawing Area"))
-        subtitle = str(
-            self.ui.get(
-                "drawing_area_placeholder",
-                "(placeholder for gallows + character)",
-            )
-        )
+    @staticmethod
+    def _character_filename(language_key: str, asset_key: str) -> str:
+        code = HangpersonFrame.LANGUAGE_KEY_TO_ASSET_CODE.get(language_key, language_key)
+        return f"{asset_key}_{code}.png"
 
+    def _people_assets_root(self, language_key: str) -> Path:
+        code = self.LANGUAGE_KEY_TO_ASSET_CODE.get(language_key, language_key)
+        return self._assets_root() / "people" / code
+
+    def _character_asset_path(self, language_key: str, asset_key: str) -> Path:
+        base_dir = self._people_assets_root(language_key)
+        canonical = base_dir / self._character_filename(language_key, asset_key)
+        if canonical.exists():
+            return canonical
+        # Compatibility fallback: allow part-only filenames without language suffix.
+        fallback = base_dir / f"{asset_key}.png"
+        if fallback.exists():
+            return fallback
+        return canonical
+
+    def _load_character_bitmap(
+        self, language_key: str, asset_key: str, target_size: tuple[int, int]
+    ) -> wx.Bitmap | None:
+        cache_key = (language_key, asset_key, target_size)
+        if cache_key in self._character_bitmap_cache:
+            return self._character_bitmap_cache[cache_key]
+        bitmap = self._load_scaled_bitmap(self._character_asset_path(language_key, asset_key), target_size)
+        self._character_bitmap_cache[cache_key] = bitmap
+        return bitmap
+
+    def _current_character_layer_keys(self) -> list[str]:
         if self.ui_mode == self.UI_MODE_SETUP:
-            subtitle = str(
-                self.ui.get(
-                    "setup_hint",
-                    "Click language/difficulty badges, then press Start.",
-                )
-            )
-        elif self.game is not None:
-            subtitle = str(
-                self.ui.get(
-                    "drawing_area_errors_format",
-                    "Errors: {errors} / {max_errors}",
-                )
-            ).format(errors=self.game.errors, max_errors=self.game.max_errors)
+            # Show base silhouette as setup preview.
+            return [self.CHARACTER_BASE_KEY]
+        if self.game is None:
+            return []
+        layers = [self.CHARACTER_BASE_KEY]
+        layers.extend(self._revealed_parts_for_errors(self.game.errors, self.difficulty_key))
+        if self.game.is_lost():
+            layers.append(self.CHARACTER_DEAD_KEY)
+        return layers
 
-        dc.SetTextForeground(wx.Colour(40, 60, 95))
-        dc.DrawText(title, 28, 28)
-        dc.DrawText(subtitle, 28, 54)
+    def _paint_character_stack(self, dc: wx.PaintDC, panel_width: int, panel_height: int) -> None:
+        layer_keys = self._current_character_layer_keys()
+        if not layer_keys:
+            return
+
+        target_w = max(panel_width - 80, 24)
+        target_h = max(panel_height - 120, 24)
+        target_size = (target_w, target_h)
+        language_key = self.pending_language_key if self.ui_mode == self.UI_MODE_SETUP else self.language_key
+        if not language_key:
+            return
+
+        stacked_bitmaps: list[wx.Bitmap] = []
+        for asset_key in layer_keys:
+            bitmap = self._load_character_bitmap(language_key, asset_key, target_size)
+            if bitmap is not None:
+                stacked_bitmaps.append(bitmap)
+        if not stacked_bitmaps:
+            return
+
+        draw_w = stacked_bitmaps[0].GetWidth()
+        draw_h = stacked_bitmaps[0].GetHeight()
+        x = max((panel_width - draw_w) // 2, 16)
+        y = max((panel_height - draw_h) // 2 + 18, 74)
+
+        for bitmap in stacked_bitmaps:
+            dc.DrawBitmap(bitmap, x, y, useMask=True)
 
     def start_session(self) -> bool:
         language_key = self.pending_language_key
@@ -821,6 +936,9 @@ class HangpersonFrame(wx.Frame):
         self.SetTitle(str(self.ui["window_title"]))
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
         self.guess_prompt_label.SetLabel(str(self.ui["guess_prompt_label"]))
+        score_tip = str(self.ui.get("score_tooltip", "Score: won / rounds played"))
+        self.trophy_label.SetToolTip(score_tip)
+        self.score_fraction_label.SetToolTip(score_tip)
 
         self._configure_action_button()
         self._update_badge_tooltips()
