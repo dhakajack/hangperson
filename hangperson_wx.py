@@ -459,7 +459,7 @@ class HangpersonFrame(wx.Frame):
         return f"{asset_key}_{code}.png"
 
     def _people_assets_root(self, language_key: str) -> Path:
-        code = self.LANGUAGE_KEY_TO_ASSET_CODE.get(language_key, language_key)
+        code = HangpersonFrame.LANGUAGE_KEY_TO_ASSET_CODE.get(language_key, language_key)
         return self._assets_root() / "people" / code
 
     def _character_asset_path(self, language_key: str, asset_key: str) -> Path:
@@ -525,8 +525,15 @@ class HangpersonFrame(wx.Frame):
             dc.DrawBitmap(bitmap, x, y, useMask=True)
 
     def start_session(self) -> bool:
-        language_key = self.pending_language_key
-        difficulty_choice = self.pending_difficulty_key
+        language_key = getattr(self, "pending_language_key", "")
+        difficulty_choice = getattr(self, "pending_difficulty_key", "")
+        if not language_key and hasattr(self, "prompt_language_key"):
+            language_key = self.prompt_language_key()
+        if not difficulty_choice and hasattr(self, "prompt_difficulty_choice"):
+            difficulty_choice = self.prompt_difficulty_choice()
+        if not language_key or not difficulty_choice:
+            return False
+
         settings = LANGUAGE_SETTINGS[language_key]
         self.language_name = str(settings["name"])
 
@@ -574,7 +581,8 @@ class HangpersonFrame(wx.Frame):
         self._build_bad_guess_slots(self.max_errors)
         self._update_status_widgets()
         self._dismiss_info()
-        self._save_preferences()
+        if hasattr(self, "_save_preferences"):
+            self._save_preferences()
 
         self.start_new_round()
         return True
@@ -635,7 +643,9 @@ class HangpersonFrame(wx.Frame):
             self._show_locked_settings_hint_once()
             return
 
-        self.pending_language_key = self._cycle_choice(self.LANGUAGE_CYCLE, self.pending_language_key)
+        self.pending_language_key = HangpersonFrame._cycle_choice(
+            HangpersonFrame.LANGUAGE_CYCLE, self.pending_language_key
+        )
         if self._load_ui_for_language(self.pending_language_key):
             self._apply_localized_labels()
             self._update_status_widgets()
@@ -647,8 +657,8 @@ class HangpersonFrame(wx.Frame):
             self._show_locked_settings_hint_once()
             return
 
-        self.pending_difficulty_key = self._cycle_choice(
-            self.DIFFICULTY_CYCLE, self.pending_difficulty_key
+        self.pending_difficulty_key = HangpersonFrame._cycle_choice(
+            HangpersonFrame.DIFFICULTY_CYCLE, self.pending_difficulty_key
         )
         self._apply_pending_difficulty()
         self._build_bad_guess_slots(self.max_errors)
