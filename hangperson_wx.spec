@@ -1,9 +1,11 @@
 # PyInstaller spec for building the wxPython desktop app.
+#
+# Avoid collecting every wxPython submodule: that pulls in deprecated, internal,
+# platform-specific modules the app does not use and can produce noisy hidden
+# import errors. PyInstaller detects the main wx imports from hangperson_wx.py;
+# keep only explicit wx add-ons used by the app.
 
-from PyInstaller.utils.hooks import collect_submodules
-
-
-hiddenimports = collect_submodules("wx")
+hiddenimports = ["wx.adv"]
 
 datas = [
     ("assets", "assets"),
@@ -27,9 +29,8 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name="Hangperson",
     debug=False,
     bootloader_ignore_signals=False,
@@ -45,13 +46,6 @@ exe = EXE(
     entitlements_file=None,
 )
 
-app = BUNDLE(
-    exe,
-    name="Hangperson.app",
-    icon=None,
-    bundle_identifier=None,
-)
-
 coll = COLLECT(
     exe,
     a.binaries,
@@ -60,4 +54,11 @@ coll = COLLECT(
     upx=True,
     upx_exclude=[],
     name="Hangperson",
+)
+
+app = BUNDLE(
+    coll,
+    name="Hangperson.app",
+    icon=None,
+    bundle_identifier=None,
 )
