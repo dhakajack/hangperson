@@ -13,6 +13,7 @@ dependencies = ["wxPython>=4.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
+corpus = ["datasets>=4.8,<5"]
 release = ["pyinstaller>=6.0"]
 
 [project.gui-scripts]
