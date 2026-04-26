@@ -537,8 +537,12 @@ class HangpersonFrame(wx.Frame):
         settings = LANGUAGE_SETTINGS[language_key]
         self.language_name = str(settings["name"])
 
-        if not self._load_ui_for_language(language_key):
-            return False
+        if hasattr(self, "_load_ui_for_language"):
+            if not self._load_ui_for_language(language_key):
+                return False
+        else:
+            self.ui = load_locale(Path(settings["locale_file"]))
+            self._apply_localized_labels()
 
         min_length, max_length, self.max_errors = DIFFICULTY_SETTINGS[difficulty_choice]
         self.difficulty_name = str(self.ui["difficulty_names"][difficulty_choice])
