@@ -312,6 +312,7 @@ class HangpersonFrame(wx.Frame):
         self.trophy_label.SetFont(wx.Font(wx.FontInfo(34)))
         self.score_fraction_label = wx.StaticText(panel, label="0\n—\n0", style=wx.ALIGN_CENTER)
         self.score_fraction_label.SetFont(wx.Font(wx.FontInfo(15).Bold()))
+        self.score_fraction_label.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
 
         score_row.Add(self.trophy_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         score_row.Add(self.score_fraction_label, 0, wx.ALIGN_CENTER_VERTICAL)
