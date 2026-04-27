@@ -774,6 +774,7 @@ class HangpersonFrame(wx.Frame):
 
         outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
         dialog.SetSizerAndFit(outer)
+        dialog.CentreOnParent()
         try:
             return dialog.ShowModal() == wx.ID_OK
         finally:
