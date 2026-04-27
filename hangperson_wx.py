@@ -891,14 +891,21 @@ class HangpersonFrame(wx.Frame):
         self, round_summary: str, replay_label: str
     ) -> bool:
         dialog = wx.Dialog(self, title=str(self.ui["round_complete_title"]))
-        dialog.SetMinSize((420, 180))
+        dialog.SetMinSize((460, 240))
 
         outer = wx.BoxSizer(wx.VERTICAL)
+        message_group = wx.BoxSizer(wx.VERTICAL)
 
         if round_summary.strip():
             summary_text = wx.StaticText(dialog, label=round_summary, style=wx.ALIGN_CENTER)
+            summary_text.SetFont(wx.Font(wx.FontInfo(16).Bold()))
             summary_text.Wrap(380)
-            outer.Add(summary_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.LEFT | wx.RIGHT, 12)
+            message_group.Add(
+                summary_text,
+                0,
+                wx.ALIGN_CENTER_HORIZONTAL | wx.LEFT | wx.RIGHT,
+                28,
+            )
 
         prompt_row = wx.BoxSizer(wx.HORIZONTAL)
         text = wx.StaticText(dialog, label=replay_label)
@@ -906,7 +913,9 @@ class HangpersonFrame(wx.Frame):
 
         prompt_row.Add(text, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        outer.Add(prompt_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
+        message_group.Add(prompt_row, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 18)
+        outer.AddStretchSpacer(1)
+        outer.Add(message_group, 0, wx.ALIGN_CENTER_HORIZONTAL)
         outer.AddStretchSpacer(1)
 
         buttons = wx.BoxSizer(wx.HORIZONTAL)
@@ -937,9 +946,11 @@ class HangpersonFrame(wx.Frame):
         dialog.SetDefaultItem(yes_button)
         yes_button.SetFocus()
 
-        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        outer.Add(buttons, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.LEFT | wx.RIGHT | wx.BOTTOM, 24)
 
         dialog.SetSizerAndFit(outer)
+        dialog.SetSize((460, max(dialog.GetSize().height, 240)))
+        dialog.CentreOnParent()
         try:
             return dialog.ShowModal() == wx.ID_YES
         finally:
