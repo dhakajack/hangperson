@@ -156,7 +156,7 @@ def test_start_session_uses_scored_source_without_warning(
 
 
 class _FakeGuessSlotsFrame:
-    GUESS_SLOT_SYMBOL = HangpersonFrame.GUESS_SLOT_SYMBOL
+    EMPTY_BAD_GUESS_SLOT_LABEL = HangpersonFrame.EMPTY_BAD_GUESS_SLOT_LABEL
 
     def __init__(self, game: HangpersonGame, max_errors: int) -> None:
         self.game = game
@@ -170,7 +170,7 @@ def test_bad_guess_slots_do_not_mark_greek_sigma_as_incorrect() -> None:
 
     slots = HangpersonFrame._format_guessed_slots(frame)  # type: ignore[arg-type]
 
-    assert slots == [HangpersonFrame.GUESS_SLOT_SYMBOL] * 5
+    assert slots == [HangpersonFrame.EMPTY_BAD_GUESS_SLOT_LABEL] * 5
 
 
 def test_cycle_choice_wraps_around() -> None:

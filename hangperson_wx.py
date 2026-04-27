@@ -29,7 +29,7 @@ class HangpersonFrame(wx.Frame):
     UI_MODE_ACTIVE = "active_round"
     UI_MODE_ROUND_COMPLETE = "round_complete"
 
-    GUESS_SLOT_SYMBOL = "▯"
+    EMPTY_BAD_GUESS_SLOT_LABEL = ""
     LANGUAGE_IMAGE_SIZE = (120, 60)
     DIFFICULTY_IMAGE_SIZE = (120, 92)
     ACTION_BUTTON_IMAGE_SIZE = (27, 27)
@@ -1047,7 +1047,7 @@ class HangpersonFrame(wx.Frame):
             if not self.game.word_contains_guess(letter)
         )
         remaining_slots = max(self.max_errors - len(incorrect_letters), 0)
-        return incorrect_letters + [self.GUESS_SLOT_SYMBOL] * remaining_slots
+        return incorrect_letters + [self.EMPTY_BAD_GUESS_SLOT_LABEL] * remaining_slots
 
     def _build_word_slots(self, slot_count: int) -> None:
         self.word_slots_sizer.Clear(delete_windows=True)
@@ -1107,7 +1107,7 @@ class HangpersonFrame(wx.Frame):
         for _ in range(slot_count):
             slot = wx.StaticText(
                 self.bad_guess_slots_panel,
-                label=self.GUESS_SLOT_SYMBOL,
+                label=self.EMPTY_BAD_GUESS_SLOT_LABEL,
                 style=wx.ALIGN_CENTER_HORIZONTAL | wx.ST_NO_AUTORESIZE | wx.BORDER_SIMPLE,
             )
             slot.SetToolTip(incorrect_tip)
