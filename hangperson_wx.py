@@ -1148,7 +1148,7 @@ class HangpersonFrame(wx.Frame):
 
             self.word_slots_sizer.Add(border, 0, wx.RIGHT, 8)
             self.word_slot_cells.append(inner)
-        self.word_slots_panel.Layout()
+        self._refresh_word_slots_layout()
 
     def _update_word_slots(self) -> None:
         if self.game is None:
@@ -1158,7 +1158,12 @@ class HangpersonFrame(wx.Frame):
         for idx, char in enumerate(self.game.progress):
             self.word_slot_cells[idx].SetLabel("" if char == "-" else char)
             self.word_slot_cells[idx].GetParent().Layout()
+        self._refresh_word_slots_layout()
+
+    def _refresh_word_slots_layout(self) -> None:
         self.word_slots_panel.Layout()
+        self.bottom_panel.Layout()
+        self.bottom_panel.Refresh()
 
     def _build_bad_guess_slots(self, slot_count: int) -> None:
         sizer = self.bad_guess_slots_panel.GetSizer()
