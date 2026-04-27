@@ -30,6 +30,7 @@ class HangpersonFrame(wx.Frame):
     UI_MODE_ROUND_COMPLETE = "round_complete"
 
     EMPTY_BAD_GUESS_SLOT_LABEL = ""
+    TROPHY_IMAGE_SIZE = (66, 66)
     LANGUAGE_IMAGE_SIZE = (120, 60)
     DIFFICULTY_IMAGE_SIZE = (120, 92)
     START_BUTTON_IMAGE_SIZE = (46, 46)
@@ -316,8 +317,15 @@ class HangpersonFrame(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         score_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.trophy_label = wx.StaticText(panel, label="🏆")
-        self.trophy_label.SetFont(wx.Font(wx.FontInfo(34)))
+        trophy_bitmap = self._load_scaled_bitmap(
+            self._assets_root() / "decoration" / "trophy.png",
+            self.TROPHY_IMAGE_SIZE,
+        )
+        if trophy_bitmap is not None:
+            self.trophy_label = wx.StaticBitmap(panel, bitmap=trophy_bitmap)
+        else:
+            self.trophy_label = wx.StaticText(panel, label="🏆")
+            self.trophy_label.SetFont(wx.Font(wx.FontInfo(34)))
         self.score_fraction_label = wx.StaticText(panel, label="0\n—\n0", style=wx.ALIGN_CENTER)
         self.score_fraction_label.SetFont(wx.Font(wx.FontInfo(15).Bold()))
         self.score_fraction_label.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))

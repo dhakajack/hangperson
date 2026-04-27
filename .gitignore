@@ -27,3 +27,8 @@ data/corpora/*mb.txt
 
 # Packaging metadata
 *.egg-info/
+
+# Mac rubbish
+*.DS_Store.DS_Store
+**/.DS_Store
+
