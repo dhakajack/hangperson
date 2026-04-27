@@ -144,6 +144,7 @@ class HangpersonFrame(wx.Frame):
         self.action_button_panel: wx.Panel | None = None
         self.action_button_bitmap: wx.StaticBitmap | None = None
         self.action_button_fallback: wx.StaticText | None = None
+        self.guess_input_panel: wx.Panel | None = None
         self._character_bitmap_cache: dict[tuple[str, str, tuple[int, int]], wx.Bitmap | None] = {}
 
         self._build_layout()
@@ -379,17 +380,32 @@ class HangpersonFrame(wx.Frame):
         self.action_button_panel.SetSizer(action_button_sizer)
         self._bind_action_button_click_targets()
 
-        self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_CENTER)
+        self.guess_input_panel = wx.Panel(panel)
+        self.guess_input_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
+        self.guess_input_panel.SetMinSize((90, 32))
+        guess_input_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.guess_input = wx.TextCtrl(
+            self.guess_input_panel,
+            style=wx.TE_PROCESS_ENTER | wx.TE_CENTER | wx.BORDER_NONE,
+        )
         self.guess_input.SetMaxLength(5)
-        self.guess_input.SetMinSize((90, -1))
+        self.guess_input.SetMinSize((90, 20))
+        self.guess_input.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
+        self.guess_input.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
         self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
+        self.guess_input.Bind(wx.EVT_SET_FOCUS, self._on_guess_input_focus_changed)
+        self.guess_input.Bind(wx.EVT_KILL_FOCUS, self._on_guess_input_focus_changed)
+        guess_input_sizer.AddStretchSpacer(1)
+        guess_input_sizer.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 4)
+        guess_input_sizer.AddStretchSpacer(1)
+        self.guess_input_panel.SetSizer(guess_input_sizer)
         self.guess_prompt_label = wx.StaticText(panel, label="")
         self.guess_prompt_label.SetFont(wx.Font(wx.FontInfo(10).Bold()))
         self.guess_prompt_label.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
 
         guess_area = wx.BoxSizer(wx.VERTICAL)
         guess_area.Add(self.guess_prompt_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
-        guess_area.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
+        guess_area.Add(self.guess_input_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12)
 
         # Keep middle elements tighter together while reserving larger outer margins.
         sizer.AddStretchSpacer(2)
@@ -842,7 +858,26 @@ class HangpersonFrame(wx.Frame):
 
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
         self.round_input_enabled = enabled
-        self.guess_input.Enable(enabled)
+        self.guess_input.SetEditable(enabled)
+        self.guess_prompt_label.Show(enabled)
+        if self.guess_input_panel is not None:
+            self.guess_input_panel.Show(enabled)
+        self._apply_guess_input_colours()
+        self.status_panel.Layout()
+
+    def _on_guess_input_focus_changed(self, event: wx.FocusEvent) -> None:
+        self._apply_guess_input_colours()
+        event.Skip()
+
+    def _apply_guess_input_colours(self) -> None:
+        bg = wx.Colour(*self.COLOR_BG_STATUS)
+        fg = wx.Colour(*self.COLOR_TEXT_PRIMARY)
+        if self.guess_input_panel is not None:
+            self.guess_input_panel.SetBackgroundColour(bg)
+            self.guess_input_panel.Refresh()
+        self.guess_input.SetBackgroundColour(bg)
+        self.guess_input.SetForegroundColour(fg)
+        self.guess_input.Refresh()
 
     def _show_centered_round_complete_dialog(
         self, round_summary: str, replay_label: str
@@ -1014,6 +1049,8 @@ class HangpersonFrame(wx.Frame):
     def _apply_localized_labels(self) -> None:
         self.SetTitle(str(self.ui["window_title"]))
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
+        if self.guess_input_panel is not None:
+            self.guess_input_panel.SetToolTip(str(self.ui["guess_input_label"]))
         self.guess_prompt_label.SetLabel(str(self.ui["guess_prompt_label"]))
         score_tip = str(self.ui.get("score_tooltip", "Score: won / rounds played"))
         self.trophy_label.SetToolTip(score_tip)
