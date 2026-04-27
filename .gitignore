@@ -24,3 +24,6 @@ dist/
 data/corpora/*_normalized.txt
 data/corpora/*_freq.tsv
 data/corpora/*mb.txt
+
+# Packaging metadata
+*.egg-info/
