@@ -32,7 +32,11 @@ class HangpersonFrame(wx.Frame):
     EMPTY_BAD_GUESS_SLOT_LABEL = ""
     LANGUAGE_IMAGE_SIZE = (120, 60)
     DIFFICULTY_IMAGE_SIZE = (120, 92)
-    ACTION_BUTTON_IMAGE_SIZE = (27, 27)
+    START_BUTTON_IMAGE_SIZE = (46, 46)
+    RESTART_BUTTON_IMAGE_SIZE = START_BUTTON_IMAGE_SIZE
+    START_BUTTON_MIN_SIZE = (82, 78)
+    RESTART_BUTTON_MIN_SIZE = START_BUTTON_MIN_SIZE
+    STATUS_ACTION_TOP_GAP = 4
     COLOR_BG_BASE = (242, 245, 249)
     COLOR_BG_DRAW = (232, 237, 245)
     COLOR_BG_BOTTOM = (236, 244, 236)
@@ -137,6 +141,9 @@ class HangpersonFrame(wx.Frame):
         self.language_badge_fallback: wx.StaticText | None = None
         self.difficulty_badge_bitmap: wx.StaticBitmap | None = None
         self.difficulty_badge_fallback: wx.StaticText | None = None
+        self.action_button_panel: wx.Panel | None = None
+        self.action_button_bitmap: wx.StaticBitmap | None = None
+        self.action_button_fallback: wx.StaticText | None = None
         self._character_bitmap_cache: dict[tuple[str, str, tuple[int, int]], wx.Bitmap | None] = {}
 
         self._build_layout()
@@ -353,8 +360,24 @@ class HangpersonFrame(wx.Frame):
         difficulty_badge_sizer.AddStretchSpacer(1)
         self.difficulty_badge_panel.SetSizer(difficulty_badge_sizer)
 
-        self.new_game_button = wx.Button(panel, label="")
-        self.new_game_button.Bind(wx.EVT_BUTTON, self.on_new_game)
+        self.action_button_panel = wx.Panel(panel)
+        self.action_button_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
+        self.action_button_panel.SetMinSize(self.START_BUTTON_MIN_SIZE)
+        action_button_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.action_button_bitmap = wx.StaticBitmap(
+            self.action_button_panel, bitmap=wx.Bitmap(1, 1)
+        )
+        self.action_button_fallback = wx.StaticText(
+            self.action_button_panel, label="", style=wx.ALIGN_CENTER_HORIZONTAL
+        )
+        self.action_button_fallback.SetFont(wx.Font(wx.FontInfo(20).Bold()))
+        self.action_button_fallback.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
+        action_button_sizer.AddStretchSpacer(1)
+        action_button_sizer.Add(self.action_button_bitmap, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        action_button_sizer.Add(self.action_button_fallback, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        action_button_sizer.AddStretchSpacer(1)
+        self.action_button_panel.SetSizer(action_button_sizer)
+        self._bind_action_button_click_targets()
 
         self.guess_input = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_CENTER)
         self.guess_input.SetMaxLength(5)
@@ -377,8 +400,8 @@ class HangpersonFrame(wx.Frame):
         sizer.Add(
             self.difficulty_badge_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 12
         )
-        sizer.AddStretchSpacer(1)
-        sizer.Add(self.new_game_button, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        sizer.AddSpacer(self.STATUS_ACTION_TOP_GAP)
+        sizer.Add(self.action_button_panel, 0, wx.ALIGN_CENTER_HORIZONTAL)
         sizer.AddStretchSpacer(1)
         sizer.Add(guess_area, 0, wx.EXPAND)
         sizer.AddStretchSpacer(2)
@@ -386,6 +409,17 @@ class HangpersonFrame(wx.Frame):
         panel.SetSizer(sizer)
 
         self._bind_badge_click_targets()
+
+    def _bind_action_button_click_targets(self) -> None:
+        targets: list[wx.Window | None] = [
+            self.action_button_panel,
+            self.action_button_bitmap,
+            self.action_button_fallback,
+        ]
+        for widget in targets:
+            if widget is not None:
+                widget.Bind(wx.EVT_LEFT_UP, self.on_new_game)
+                widget.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
     def _bind_badge_click_targets(self) -> None:
         targets: list[tuple[wx.Window | None, wx.PyEventBinder, callable]] = [
@@ -726,7 +760,7 @@ class HangpersonFrame(wx.Frame):
             return False
         return not self.game.is_won() and not self.game.is_lost()
 
-    def on_new_game(self, _: wx.CommandEvent) -> None:
+    def on_new_game(self, _: wx.Event) -> None:
         if self.ui_mode == self.UI_MODE_SETUP:
             if self.start_session():
                 return
@@ -900,76 +934,62 @@ class HangpersonFrame(wx.Frame):
             if self.IsShownOnScreen():
                 start_icon = self._load_scaled_bitmap(
                     self._assets_root() / "buttons" / "start_rocket.png",
-                    self.ACTION_BUTTON_IMAGE_SIZE,
+                    self.START_BUTTON_IMAGE_SIZE,
                 )
             try:
                 if start_icon is not None:
-                    self._set_action_button_bitmap(start_icon)
-                    self.new_game_button.SetLabel("")
+                    self._show_action_button_bitmap(start_icon)
                 else:
                     # Fallback when bitmap assets are unavailable or too early to set.
-                    self._clear_action_button_bitmaps()
-                    self.new_game_button.SetLabel(str(self.ui["start_button"]))
+                    self._show_action_button_fallback(str(self.ui["start_button"]))
             except wx.PyAssertionError:
                 # GTK-safe fallback if image widget is not ready yet.
-                self._clear_action_button_bitmaps()
-                self.new_game_button.SetLabel(str(self.ui["start_button"]))
-            self.new_game_button.SetForegroundColour(wx.Colour(0, 110, 50))
-            self.new_game_button.SetToolTip(str(self.ui["start_button"]))
+                self._show_action_button_fallback(str(self.ui["start_button"]))
+            self._set_action_button_tooltip(str(self.ui["start_button"]))
         else:
             restart_icon: wx.Bitmap | None = None
             if self.IsShownOnScreen():
                 restart_icon = self._load_scaled_bitmap(
                     self._assets_root() / "buttons" / "restart_arrow.png",
-                    self.ACTION_BUTTON_IMAGE_SIZE,
+                    self.RESTART_BUTTON_IMAGE_SIZE,
                 )
-            self._clear_action_button_bitmaps()
             if restart_icon is not None:
-                self._set_action_button_bitmap(restart_icon)
-                self.new_game_button.SetLabel("")
+                self._show_action_button_bitmap(restart_icon)
             else:
-                self.new_game_button.SetLabel("↻")
-            self.new_game_button.SetForegroundColour(wx.Colour(0, 95, 200))
-            self.new_game_button.SetToolTip(str(self.ui["new_game_button"]))
-        self.new_game_button.SetFont(wx.Font(wx.FontInfo(14).Bold()))
-        self.new_game_button.SetMinSize((56, 44))
-        self.new_game_button.Refresh()
+                self._show_action_button_fallback("↻")
+            self._set_action_button_tooltip(str(self.ui["new_game_button"]))
+        min_size = (
+            self.START_BUTTON_MIN_SIZE
+            if self.ui_mode == self.UI_MODE_SETUP
+            else self.RESTART_BUTTON_MIN_SIZE
+        )
+        if self.action_button_panel is not None:
+            self.action_button_panel.SetMinSize(min_size)
+            self.action_button_panel.Layout()
+            self.action_button_panel.Refresh()
 
-    def _set_action_button_bitmap(self, bitmap: wx.Bitmap) -> None:
-        set_methods = [
-            "SetBitmap",
-            "SetBitmapLabel",
-            "SetBitmapCurrent",
-            "SetBitmapPressed",
-            "SetBitmapFocus",
-        ]
-        for method_name in set_methods:
-            method = getattr(self.new_game_button, method_name, None)
-            if method is None:
-                continue
-            try:
-                method(bitmap)
-            except Exception:
-                continue
+    def _show_action_button_bitmap(self, bitmap: wx.Bitmap) -> None:
+        if self.action_button_bitmap is None or self.action_button_fallback is None:
+            return
+        self.action_button_bitmap.SetBitmap(bitmap)
+        self.action_button_bitmap.Show()
+        self.action_button_fallback.Hide()
 
-    def _clear_action_button_bitmaps(self) -> None:
-        transparent = wx.Bitmap(1, 1)
-        clear_methods = [
-            "SetBitmap",
-            "SetBitmapLabel",
-            "SetBitmapCurrent",
-            "SetBitmapPressed",
-            "SetBitmapDisabled",
-            "SetBitmapFocus",
-        ]
-        for method_name in clear_methods:
-            method = getattr(self.new_game_button, method_name, None)
-            if method is None:
-                continue
-            try:
-                method(transparent)
-            except Exception:
-                continue
+    def _show_action_button_fallback(self, label: str) -> None:
+        if self.action_button_bitmap is None or self.action_button_fallback is None:
+            return
+        self.action_button_bitmap.Hide()
+        self.action_button_fallback.SetLabel(label)
+        self.action_button_fallback.Show()
+
+    def _set_action_button_tooltip(self, tooltip: str) -> None:
+        for widget in [
+            self.action_button_panel,
+            self.action_button_bitmap,
+            self.action_button_fallback,
+        ]:
+            if widget is not None:
+                widget.SetToolTip(tooltip)
 
     def _update_badge_tooltips(self) -> None:
         if self.ui_mode == self.UI_MODE_SETUP:
