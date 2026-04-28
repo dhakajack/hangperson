@@ -15,11 +15,48 @@ from hangperson import (
     LANGUAGE_SETTINGS,
     HangpersonGame,
     choose_word,
+    format_letter_for_display,
     is_letter_for_language,
     load_locale,
     load_words_for_session,
     normalize_guess_for_language,
 )
+
+
+class LetterCell(wx.Panel):
+    """Paint a centered single-letter label without native StaticText clipping."""
+
+    def __init__(self, parent: wx.Window, bg_colour: wx.Colour) -> None:
+        super().__init__(parent)
+        self._label = ""
+        self.SetBackgroundColour(bg_colour)
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+        self.Bind(wx.EVT_PAINT, self._on_paint)
+
+    def SetLabel(self, label: str) -> None:  # noqa: N802 - wx compatibility
+        self._label = label
+        self.Refresh()
+
+    def GetLabel(self) -> str:  # noqa: N802 - wx compatibility
+        return self._label
+
+    def _on_paint(self, _: wx.PaintEvent) -> None:
+        dc = wx.AutoBufferedPaintDC(self)
+        width, height = self.GetClientSize()
+
+        dc.SetPen(wx.TRANSPARENT_PEN)
+        dc.SetBrush(wx.Brush(self.GetBackgroundColour()))
+        dc.DrawRectangle(0, 0, width, height)
+
+        if not self._label:
+            return
+
+        dc.SetFont(self.GetFont())
+        dc.SetTextForeground(self.GetForegroundColour())
+        text_width, text_height, _, _ = dc.GetFullTextExtent(self._label)
+        x = max((width - text_width) // 2, 0)
+        y = max((height - text_height) // 2, 0)
+        dc.DrawText(self._label, x, y)
 
 
 class HangpersonFrame(wx.Frame):
@@ -38,6 +75,10 @@ class HangpersonFrame(wx.Frame):
     START_BUTTON_MIN_SIZE = (82, 78)
     RESTART_BUTTON_MIN_SIZE = START_BUTTON_MIN_SIZE
     STATUS_ACTION_TOP_GAP = 4
+    WORD_SLOT_CELL_SIZE = (36, 56)
+    BAD_GUESS_SLOT_CELL_SIZE = (26, 38)
+    BAD_GUESS_SLOT_VERTICAL_MARGIN = 2
+    MAX_BAD_GUESS_SLOTS = max(settings[2] for settings in DIFFICULTY_SETTINGS.values())
     COLOR_BG_BASE = (242, 245, 249)
     COLOR_BG_DRAW = (232, 237, 245)
     COLOR_BG_BOTTOM = (236, 244, 236)
@@ -51,7 +92,10 @@ class HangpersonFrame(wx.Frame):
     COLOR_TEXT_PRIMARY = (22, 38, 53)
     COLOR_WORD_SLOT_BORDER = (28, 62, 89)
     COLOR_WORD_SLOT_FILL = (246, 252, 246)
-    WORD_SLOTS_PANEL_MIN_HEIGHT = 60
+    WORD_SLOTS_PANEL_MIN_HEIGHT = 66
+    MIN_FRAME_HEIGHT = 500
+    BAD_GUESS_PANEL_OUTER_VERTICAL_MARGIN = 16
+    BAD_GUESS_PANEL_INNER_VERTICAL_MARGIN = 16
 
     LANGUAGE_CYCLE = ["e", "f", "r", "el"]
     DIFFICULTY_CYCLE = ["1", "2", "3"]
@@ -113,7 +157,7 @@ class HangpersonFrame(wx.Frame):
 
     def __init__(self) -> None:
         super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
-        self.SetMinSize((780, 500))
+        self.SetMinSize((780, self.MIN_FRAME_HEIGHT))
 
         self.ui: dict[str, object] = {}
         self.ui_mode = self.UI_MODE_SETUP
@@ -136,8 +180,8 @@ class HangpersonFrame(wx.Frame):
         self.round_input_enabled = False
         self.info_hide_timer: wx.CallLater | None = None
         self.message_label: wx.StaticText | None = None
-        self.word_slot_cells: list[wx.StaticText] = []
-        self.bad_guess_cells: list[wx.StaticText] = []
+        self.word_slot_cells: list[LetterCell] = []
+        self.bad_guess_cells: list[LetterCell] = []
         self.language_badge_bitmap: wx.StaticBitmap | None = None
         self.language_badge_fallback: wx.StaticText | None = None
         self.difficulty_badge_bitmap: wx.StaticBitmap | None = None
@@ -149,6 +193,7 @@ class HangpersonFrame(wx.Frame):
         self._character_bitmap_cache: dict[tuple[str, str, tuple[int, int]], wx.Bitmap | None] = {}
 
         self._build_layout()
+        self._validate_bad_guess_slots_fit_minimum_height()
         self.Centre()
         self.Bind(wx.EVT_SHOW, self._on_frame_show)
 
@@ -304,6 +349,40 @@ class HangpersonFrame(wx.Frame):
         root_sizer.Add(bad_guess_panel, 0, wx.EXPAND | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
 
         root.SetSizer(root_sizer)
+
+    @classmethod
+    def _bad_guess_slot_outer_height(cls) -> int:
+        return (
+            cls.BAD_GUESS_SLOT_CELL_SIZE[1]
+            + 2
+            + (cls.BAD_GUESS_SLOT_VERTICAL_MARGIN * 2)
+        )
+
+    @classmethod
+    def _bad_guess_slots_required_height(cls) -> int:
+        return cls.MAX_BAD_GUESS_SLOTS * cls._bad_guess_slot_outer_height()
+
+    @classmethod
+    def _minimum_bad_guess_slots_available_height(cls) -> int:
+        return (
+            cls.MIN_FRAME_HEIGHT
+            - cls.BAD_GUESS_PANEL_OUTER_VERTICAL_MARGIN
+            - cls.BAD_GUESS_PANEL_INNER_VERTICAL_MARGIN
+        )
+
+    @classmethod
+    def _bad_guess_slots_fit_minimum_height(cls) -> bool:
+        return (
+            cls._bad_guess_slots_required_height()
+            <= cls._minimum_bad_guess_slots_available_height()
+        )
+
+    @classmethod
+    def _validate_bad_guess_slots_fit_minimum_height(cls) -> None:
+        if not cls._bad_guess_slots_fit_minimum_height():
+            raise RuntimeError(
+                "Bad-guess slot geometry exceeds the minimum window height."
+            )
 
     def _on_frame_show(self, event: wx.ShowEvent) -> None:
         if event.IsShown():
@@ -805,7 +884,10 @@ class HangpersonFrame(wx.Frame):
         if not self.round_input_enabled or self.game is None:
             return
 
-        guess = self.guess_input.GetValue().strip().lower()
+        guess = normalize_guess_for_language(
+            self.guess_input.GetValue().strip(),
+            self.language_key,
+        )
         if len(guess) != 1 or not guess.isalpha():
             self._show_info(str(self.ui["letter_invalid"]))
             self.guess_input.SetFocus()
@@ -813,7 +895,6 @@ class HangpersonFrame(wx.Frame):
             return
 
         self.guess_input.Clear()
-        guess = normalize_guess_for_language(guess, self.language_key)
         if not is_letter_for_language(guess, self.language_key):
             # Soft warning only: accept the guess to avoid false negatives on WSL key layouts.
             if not self.script_warning_shown:
@@ -832,7 +913,11 @@ class HangpersonFrame(wx.Frame):
         self._refresh_game_views()
 
         if outcome == "repeat":
-            self._show_info(str(self.ui["repeat_guess"]).format(letter=guess.upper()))
+            self._show_info(
+                str(self.ui["repeat_guess"]).format(
+                    letter=format_letter_for_display(guess)
+                )
+            )
             return
 
         if self.game.is_won():
@@ -1119,7 +1204,7 @@ class HangpersonFrame(wx.Frame):
             return []
 
         incorrect_letters = sorted(
-            letter.upper()
+            format_letter_for_display(letter)
             for letter in self.game.guessed_letters
             if not self.game.word_contains_guess(letter)
         )
@@ -1136,27 +1221,27 @@ class HangpersonFrame(wx.Frame):
             border.SetBackgroundColour(wx.Colour(*self.COLOR_WORD_SLOT_BORDER))
             content = wx.Panel(border)
             content.SetBackgroundColour(wx.Colour(*self.COLOR_WORD_SLOT_FILL))
-            content.SetMinSize((34, 48))
+            content.SetMinSize(self.WORD_SLOT_CELL_SIZE)
 
-            inner = wx.StaticText(
+            inner = LetterCell(
                 content,
-                label="",
-                style=wx.ALIGN_CENTER,
+                bg_colour=wx.Colour(*self.COLOR_WORD_SLOT_FILL),
             )
+            inner.SetMinSize(self.WORD_SLOT_CELL_SIZE)
             inner.SetToolTip(target_tip)
             inner.SetFont(wx.Font(wx.FontInfo(20).Bold()))
             inner.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
 
             content_sizer = wx.BoxSizer(wx.VERTICAL)
-            content_sizer.AddStretchSpacer(1)
-            content_sizer.Add(inner, 0, wx.ALIGN_CENTER)
-            content_sizer.AddStretchSpacer(1)
+            content_sizer.Add(inner, 1, wx.EXPAND)
             content.SetSizer(content_sizer)
 
             border_sizer = wx.BoxSizer(wx.VERTICAL)
             border_sizer.Add(content, 1, wx.EXPAND | wx.ALL, 1)
             border.SetSizer(border_sizer)
-            border.SetMinSize((36, 50))
+            border.SetMinSize(
+                (self.WORD_SLOT_CELL_SIZE[0] + 2, self.WORD_SLOT_CELL_SIZE[1] + 2)
+            )
 
             self.word_slots_sizer.Add(border, 0, wx.RIGHT, 8)
             self.word_slot_cells.append(inner)
@@ -1186,37 +1271,47 @@ class HangpersonFrame(wx.Frame):
         incorrect_tip = str(self.ui.get("incorrect_guesses_tooltip", "Incorrect letters"))
         self.bad_guess_slots_panel.SetToolTip(incorrect_tip)
         sizer.AddStretchSpacer(1)
+        slot_count = min(slot_count, self.MAX_BAD_GUESS_SLOTS)
         for _ in range(slot_count):
             border = wx.Panel(self.bad_guess_slots_panel)
             border.SetToolTip(incorrect_tip)
             border.SetBackgroundColour(wx.Colour(*self.COLOR_BORDER_DRAW_SURFACE))
-            border.SetMinSize((28, 40))
+            border.SetMinSize(
+                (
+                    self.BAD_GUESS_SLOT_CELL_SIZE[0] + 2,
+                    self.BAD_GUESS_SLOT_CELL_SIZE[1] + 2,
+                )
+            )
 
             content = wx.Panel(border)
             content.SetToolTip(incorrect_tip)
             content.SetBackgroundColour(wx.Colour(*self.COLOR_BG_BAD_GUESS_SLOTS))
-            content.SetMinSize((26, 38))
+            content.SetMinSize(self.BAD_GUESS_SLOT_CELL_SIZE)
 
-            slot = wx.StaticText(
+            slot = LetterCell(
                 content,
-                label=self.EMPTY_BAD_GUESS_SLOT_LABEL,
-                style=wx.ALIGN_CENTER,
+                bg_colour=wx.Colour(*self.COLOR_BG_BAD_GUESS_SLOTS),
             )
+            slot.SetLabel(self.EMPTY_BAD_GUESS_SLOT_LABEL)
+            slot.SetMinSize(self.BAD_GUESS_SLOT_CELL_SIZE)
             slot.SetToolTip(incorrect_tip)
             slot.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
             slot.SetFont(wx.Font(wx.FontInfo(18).Bold()))
 
             content_sizer = wx.BoxSizer(wx.VERTICAL)
-            content_sizer.AddStretchSpacer(1)
-            content_sizer.Add(slot, 0, wx.ALIGN_CENTER)
-            content_sizer.AddStretchSpacer(1)
+            content_sizer.Add(slot, 1, wx.EXPAND)
             content.SetSizer(content_sizer)
 
             border_sizer = wx.BoxSizer(wx.VERTICAL)
             border_sizer.Add(content, 1, wx.EXPAND | wx.ALL, 1)
             border.SetSizer(border_sizer)
 
-            sizer.Add(border, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 4)
+            sizer.Add(
+                border,
+                0,
+                wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM,
+                self.BAD_GUESS_SLOT_VERTICAL_MARGIN,
+            )
             self.bad_guess_cells.append(slot)
         sizer.AddStretchSpacer(1)
         self.bad_guess_slots_panel.Layout()

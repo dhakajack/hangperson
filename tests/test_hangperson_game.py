@@ -1,5 +1,6 @@
 from hangperson import (
     HangpersonGame,
+    format_letter_for_display,
     is_letter_for_language,
     normalize_guess_for_language,
     resolve_language_choice,
@@ -76,3 +77,41 @@ def test_greek_sigma_variants_are_treated_as_single_guess() -> None:
     guess2 = normalize_guess_for_language("σ", "el")
     assert guess2 == "σ"
     assert game.apply_guess(guess2) == "repeat"
+
+
+def test_accented_latin_letters_display_with_accents() -> None:
+    game = HangpersonGame(word="rivière", max_errors=5)
+
+    assert game.apply_guess("e") == "correct"
+    assert game.progress == ["-", "-", "-", "-", "-", "-", "E"]
+
+    assert game.apply_guess("è") == "correct"
+    assert game.progress == ["-", "-", "-", "-", "È", "-", "E"]
+
+    assert game.apply_guess("é") == "incorrect"
+    assert game.guessed_display == "E, È, É"
+
+
+def test_format_letter_for_display_keeps_latin_diacritics_visible() -> None:
+    assert format_letter_for_display("e") == "E"
+    assert format_letter_for_display("é") == "É"
+    assert format_letter_for_display("e\u0301") == "É"
+    assert format_letter_for_display("ç") == "Ç"
+    assert format_letter_for_display("σ") == "Σ"
+
+
+def test_decomposed_accented_guess_matches_composed_word_letter() -> None:
+    game = HangpersonGame(word="caféine", max_errors=5)
+    guess = normalize_guess_for_language("e\u0301", "f")
+
+    assert guess == "é"
+    assert game.apply_guess(guess) == "correct"
+    assert game.progress == ["-", "-", "-", "É", "-", "-", "-"]
+
+
+def test_french_word_progress_uses_accented_word_letters() -> None:
+    game = HangpersonGame(word="espérer", max_errors=10)
+    for raw in ["e", "é", "s", "p", "r"]:
+        game.apply_guess(normalize_guess_for_language(raw, "f"))
+
+    assert game.progress == ["E", "S", "P", "É", "R", "E", "R"]

@@ -134,7 +134,12 @@ def is_letter_for_language(letter: str, language_key: str) -> bool:
 def normalize_guess_for_language(guess: str, language_key: str) -> str:
     """Normalize user guesses to a canonical Unicode form for comparisons."""
     _ = language_key
-    return guess.casefold()
+    return unicodedata.normalize("NFC", guess.casefold())
+
+
+def format_letter_for_display(letter: str) -> str:
+    """Format a guessed letter for display using Unicode-aware uppercase."""
+    return unicodedata.normalize("NFC", letter.upper())
 
 
 def prompt_letter(ui: dict[str, object], language_key: str) -> str:
@@ -217,7 +222,9 @@ class HangpersonGame:
 
     @property
     def guessed_display(self) -> str:
-        guessed = ", ".join(sorted(letter.upper() for letter in self.guessed_letters))
+        guessed = ", ".join(
+            sorted(format_letter_for_display(letter) for letter in self.guessed_letters)
+        )
         return guessed if guessed else self.guessed_none
 
     @staticmethod
@@ -241,7 +248,7 @@ class HangpersonGame:
         if self.word_contains_guess(guess):
             for idx, letter in enumerate(self.word):
                 if self._canonicalize_letter(letter) == guess:
-                    self.progress[idx] = guess.upper()
+                    self.progress[idx] = format_letter_for_display(letter)
             return "correct"
 
         self.errors += 1

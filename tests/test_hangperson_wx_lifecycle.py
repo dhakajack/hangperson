@@ -173,6 +173,23 @@ def test_bad_guess_slots_do_not_mark_greek_sigma_as_incorrect() -> None:
     assert slots == [HangpersonFrame.EMPTY_BAD_GUESS_SLOT_LABEL] * 5
 
 
+def test_bad_guess_slots_preserve_french_accents() -> None:
+    game = HangpersonGame(word="rivière", max_errors=5)
+    game.apply_guess("e")
+    game.apply_guess("é")
+    frame = _FakeGuessSlotsFrame(game=game, max_errors=5)
+
+    slots = HangpersonFrame._format_guessed_slots(frame)  # type: ignore[arg-type]
+
+    assert slots == ["É"] + [HangpersonFrame.EMPTY_BAD_GUESS_SLOT_LABEL] * 4
+
+
+def test_bad_guess_slots_fit_minimum_window_height() -> None:
+    assert HangpersonFrame._bad_guess_slots_required_height() == 440
+    assert HangpersonFrame._minimum_bad_guess_slots_available_height() == 468
+    assert HangpersonFrame._bad_guess_slots_fit_minimum_height() is True
+
+
 def test_cycle_choice_wraps_around() -> None:
     assert HangpersonFrame._cycle_choice(["e", "f", "r", "el"], "el") == "e"
     assert HangpersonFrame._cycle_choice(["1", "2", "3"], "2") == "3"
