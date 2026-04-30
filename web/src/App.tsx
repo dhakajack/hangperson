@@ -51,6 +51,14 @@ function App() {
     state.game?.incorrectGuessSlots('') ?? Array.from({ length: state.maxErrors }, () => '')
   const wordSlots = state.game?.progress ?? []
   const inputDisabled = state.uiMode !== 'active_round' || state.loading || state.resetConfirmOpen
+  const languageBadgeLabel =
+    state.uiMode === 'setup'
+      ? t(state.locale, 'language_click_hint', 'Click to change language.')
+      : languageSettings[languageKey].name
+  const difficultyBadgeLabel =
+    state.uiMode === 'setup'
+      ? t(state.locale, 'difficulty_click_hint', 'Click to change difficulty.')
+      : difficultyName
 
   useEffect(() => {
     let canceled = false
@@ -164,8 +172,8 @@ function App() {
             className="badge-button"
             onClick={() => void handleCycleLanguage()}
             disabled={state.loading}
-            aria-label={languageSettings[languageKey].name}
-            title={t(state.locale, 'language_click_hint', 'Click to change language.')}
+            aria-label={languageBadgeLabel}
+            title={languageBadgeLabel}
           >
             <img
               src={languageBadgePath(languageKey)}
@@ -179,8 +187,8 @@ function App() {
             className="badge-button difficulty-button"
             onClick={handleCycleDifficulty}
             disabled={state.loading}
-            aria-label={difficultyName}
-            title={t(state.locale, 'difficulty_click_hint', 'Click to change difficulty.')}
+            aria-label={difficultyBadgeLabel}
+            title={difficultyBadgeLabel}
           >
             <img src={difficultyIconPath(difficultyKey)} alt="" className="difficulty-badge" />
           </button>
