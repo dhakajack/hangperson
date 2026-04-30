@@ -5,12 +5,19 @@
 # import errors. PyInstaller detects the main wx imports from hangperson_wx.py;
 # keep only explicit wx add-ons used by the app.
 
+from pathlib import Path
+
 hiddenimports = ["wx.adv"]
+
+runtime_word_files = [
+    (str(path), "data") for path in sorted(Path("data").glob("words_*.txt"))
+]
 
 datas = [
     ("assets", "assets"),
-    ("data", "data"),
-]
+    ("data/difficulty", "data/difficulty"),
+    ("data/locales", "data/locales"),
+] + runtime_word_files
 
 a = Analysis(
     ["hangperson_wx.py"],

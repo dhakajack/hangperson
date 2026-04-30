@@ -59,6 +59,161 @@ class LetterCell(wx.Panel):
         dc.DrawText(self._label, x, y)
 
 
+class GuessInput(wx.Panel):
+    """Small focusable text entry with custom-painted focus state."""
+
+    def __init__(
+        self,
+        parent: wx.Window,
+        submit_callback: callable,
+        *,
+        border_colour: wx.Colour,
+        fill_colour: wx.Colour,
+        focus_border_colour: wx.Colour,
+        focus_fill_colour: wx.Colour,
+        text_colour: wx.Colour,
+        max_length: int = 5,
+    ) -> None:
+        super().__init__(parent, style=wx.WANTS_CHARS)
+        self._submit_callback = submit_callback
+        self._border_colour = border_colour
+        self._fill_colour = fill_colour
+        self._focus_border_colour = focus_border_colour
+        self._focus_fill_colour = focus_fill_colour
+        self._text_colour = text_colour
+        self._max_length = max_length
+        self._value = ""
+        self._editable = True
+        self._selection_all = False
+
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+        self.SetCanFocus(True)
+        self.SetMinSize((96, 36))
+        self.SetForegroundColour(text_colour)
+        self.SetCursor(wx.Cursor(wx.CURSOR_IBEAM))
+        self.Bind(wx.EVT_PAINT, self._on_paint)
+        self.Bind(wx.EVT_CHAR, self._on_char)
+        self.Bind(wx.EVT_LEFT_DOWN, self._on_left_down)
+        self.Bind(wx.EVT_SET_FOCUS, self._on_focus_changed)
+        self.Bind(wx.EVT_KILL_FOCUS, self._on_focus_changed)
+
+    def Clear(self) -> None:  # noqa: N802 - wx compatibility
+        self._value = ""
+        self._selection_all = False
+        self.Refresh()
+
+    def GetValue(self) -> str:  # noqa: N802 - wx compatibility
+        return self._value
+
+    def SetEditable(self, editable: bool) -> None:  # noqa: N802 - wx compatibility
+        self._editable = editable
+        self.Refresh()
+
+    def SelectAll(self) -> None:  # noqa: N802 - wx compatibility
+        self._selection_all = bool(self._value)
+        self.Refresh()
+
+    def SetMaxLength(self, max_length: int) -> None:  # noqa: N802 - wx compatibility
+        self._max_length = max_length
+
+    def _on_left_down(self, event: wx.MouseEvent) -> None:
+        self.SetFocus()
+        self._selection_all = False
+        event.Skip()
+
+    def _on_focus_changed(self, event: wx.FocusEvent) -> None:
+        if not self.HasFocus():
+            self._selection_all = False
+        self.Refresh()
+        event.Skip()
+
+    def _on_char(self, event: wx.KeyEvent) -> None:
+        key_code = event.GetKeyCode()
+        if key_code in {wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER}:
+            self._submit_callback(event)
+            return
+
+        if not self._editable:
+            return
+
+        if key_code in {wx.WXK_BACK, wx.WXK_DELETE}:
+            if self._selection_all:
+                self.Clear()
+                return
+            self._value = self._value[:-1]
+            self.Refresh()
+            return
+
+        unicode_key = event.GetUnicodeKey()
+        if unicode_key in (wx.WXK_NONE, 0):
+            event.Skip()
+            return
+
+        char = chr(unicode_key)
+        if not char.isprintable():
+            event.Skip()
+            return
+
+        if self._selection_all:
+            self._value = char
+            self._selection_all = False
+        elif len(self._value) < self._max_length:
+            self._value += char
+        else:
+            self._value = char
+        self.Refresh()
+
+    def _on_paint(self, _: wx.PaintEvent) -> None:
+        dc = wx.AutoBufferedPaintDC(self)
+        width, height = self.GetClientSize()
+        focused = self.HasFocus() and self._editable
+
+        border_colour = self._focus_border_colour if focused else self._border_colour
+        fill_colour = self._focus_fill_colour if focused else self._fill_colour
+
+        dc.SetPen(wx.TRANSPARENT_PEN)
+        dc.SetBrush(wx.Brush(border_colour))
+        dc.DrawRectangle(0, 0, width, height)
+
+        inset = 3 if focused else 2
+        inner_rect = wx.Rect(
+            inset,
+            inset,
+            max(width - (inset * 2), 1),
+            max(height - (inset * 2), 1),
+        )
+        dc.SetBrush(wx.Brush(fill_colour))
+        dc.DrawRectangle(inner_rect)
+
+        dc.SetFont(self.GetFont())
+        dc.SetTextForeground(self._text_colour)
+        text = self._value
+        text_width, text_height, _, _ = dc.GetFullTextExtent(text or "A")
+        x = inner_rect.x + max((inner_rect.width - text_width) // 2, 0)
+        y = inner_rect.y + max((inner_rect.height - text_height) // 2, 0)
+
+        if self._selection_all and text:
+            highlight_rect = wx.Rect(
+                x - 2,
+                y,
+                text_width + 4,
+                text_height,
+            )
+            dc.SetBrush(wx.Brush(wx.Colour(184, 221, 255)))
+            dc.DrawRectangle(highlight_rect)
+            dc.SetTextForeground(self._text_colour)
+
+        if text:
+            dc.DrawText(text, x, y)
+
+        if focused:
+            caret_x = x + text_width + 2 if text else inner_rect.x + inner_rect.width // 2
+            caret_top = y + 2
+            caret_bottom = y + text_height - 2
+            dc.SetPen(wx.Pen(wx.Colour(22, 114, 212), 2))
+            dc.DrawLine(caret_x, caret_top, caret_x, caret_bottom)
+
+
 class HangpersonFrame(wx.Frame):
     """Main GUI frame for the Hangperson game."""
 
@@ -76,6 +231,7 @@ class HangpersonFrame(wx.Frame):
     RESTART_BUTTON_MIN_SIZE = START_BUTTON_MIN_SIZE
     STATUS_ACTION_TOP_GAP = 4
     WORD_SLOT_CELL_SIZE = (36, 56)
+    GUESS_INPUT_OUTER_SIZE = (96, 36)
     BAD_GUESS_SLOT_CELL_SIZE = (26, 38)
     BAD_GUESS_SLOT_VERTICAL_MARGIN = 2
     MAX_BAD_GUESS_SLOTS = max(settings[2] for settings in DIFFICULTY_SETTINGS.values())
@@ -92,6 +248,8 @@ class HangpersonFrame(wx.Frame):
     COLOR_TEXT_PRIMARY = (22, 38, 53)
     COLOR_WORD_SLOT_BORDER = (28, 62, 89)
     COLOR_WORD_SLOT_FILL = (246, 252, 246)
+    COLOR_GUESS_INPUT_FOCUS_BORDER = (74, 151, 219)
+    COLOR_GUESS_INPUT_FOCUS_FILL = (235, 248, 255)
     WORD_SLOTS_PANEL_MIN_HEIGHT = 66
     MIN_FRAME_HEIGHT = 500
     BAD_GUESS_PANEL_OUTER_VERTICAL_MARGIN = 16
@@ -196,6 +354,7 @@ class HangpersonFrame(wx.Frame):
         self._validate_bad_guess_slots_fit_minimum_height()
         self.Centre()
         self.Bind(wx.EVT_SHOW, self._on_frame_show)
+        self.Bind(wx.EVT_CLOSE, self._on_frame_close)
 
         self._initialize_setup_state()
 
@@ -392,6 +551,10 @@ class HangpersonFrame(wx.Frame):
             self._update_badge_tooltips()
         event.Skip()
 
+    def _on_frame_close(self, event: wx.CloseEvent) -> None:
+        self._stop_info_timer()
+        event.Skip()
+
     def _build_status_panel(self, panel: wx.Panel) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -469,22 +632,21 @@ class HangpersonFrame(wx.Frame):
 
         self.guess_input_panel = wx.Panel(panel)
         self.guess_input_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
-        self.guess_input_panel.SetMinSize((90, 32))
+        self.guess_input_panel.SetMinSize(self.GUESS_INPUT_OUTER_SIZE)
         guess_input_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.guess_input = wx.TextCtrl(
+        self.guess_input = GuessInput(
             self.guess_input_panel,
-            style=wx.TE_PROCESS_ENTER | wx.TE_CENTER | wx.BORDER_NONE,
+            self.on_submit_guess,
+            border_colour=wx.Colour(*self.COLOR_WORD_SLOT_BORDER),
+            fill_colour=wx.Colour(*self.COLOR_WORD_SLOT_FILL),
+            focus_border_colour=wx.Colour(*self.COLOR_GUESS_INPUT_FOCUS_BORDER),
+            focus_fill_colour=wx.Colour(*self.COLOR_GUESS_INPUT_FOCUS_FILL),
+            text_colour=wx.Colour(*self.COLOR_TEXT_PRIMARY),
         )
         self.guess_input.SetMaxLength(5)
-        self.guess_input.SetMinSize((90, 20))
-        self.guess_input.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
-        self.guess_input.SetForegroundColour(wx.Colour(*self.COLOR_TEXT_PRIMARY))
-        self.guess_input.Bind(wx.EVT_TEXT_ENTER, self.on_submit_guess)
         self.guess_input.Bind(wx.EVT_SET_FOCUS, self._on_guess_input_focus_changed)
         self.guess_input.Bind(wx.EVT_KILL_FOCUS, self._on_guess_input_focus_changed)
-        guess_input_sizer.AddStretchSpacer(1)
-        guess_input_sizer.Add(self.guess_input, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 4)
-        guess_input_sizer.AddStretchSpacer(1)
+        guess_input_sizer.Add(self.guess_input, 1, wx.EXPAND)
         self.guess_input_panel.SetSizer(guess_input_sizer)
         self.guess_prompt_label = wx.StaticText(panel, label="")
         self.guess_prompt_label.SetFont(wx.Font(wx.FontInfo(10).Bold()))
@@ -722,7 +884,6 @@ class HangpersonFrame(wx.Frame):
         self.session_rounds_won = 0
         self._build_bad_guess_slots(self.max_errors)
         self._update_status_widgets()
-        self._dismiss_info()
         if hasattr(self, "_save_preferences"):
             self._save_preferences()
 
@@ -948,6 +1109,10 @@ class HangpersonFrame(wx.Frame):
         if replay:
             self.start_new_round()
             return
+        self._destroy_frame()
+
+    def _destroy_frame(self) -> None:
+        self._stop_info_timer()
         self.Destroy()
 
     def _set_guess_controls_enabled(self, enabled: bool) -> None:
@@ -964,12 +1129,10 @@ class HangpersonFrame(wx.Frame):
         event.Skip()
 
     def _apply_guess_input_colours(self) -> None:
-        bg = wx.Colour(*self.COLOR_BG_STATUS)
         fg = wx.Colour(*self.COLOR_TEXT_PRIMARY)
         if self.guess_input_panel is not None:
-            self.guess_input_panel.SetBackgroundColour(bg)
+            self.guess_input_panel.SetBackgroundColour(wx.Colour(*self.COLOR_BG_STATUS))
             self.guess_input_panel.Refresh()
-        self.guess_input.SetBackgroundColour(bg)
         self.guess_input.SetForegroundColour(fg)
         self.guess_input.Refresh()
 
@@ -1189,15 +1352,20 @@ class HangpersonFrame(wx.Frame):
         self.message_label.SetForegroundColour(fg)
         self.message_label.SetLabel(message)
         self.message_label.GetParent().Layout()
+        self._stop_info_timer()
+        self.info_hide_timer = wx.CallLater(timeout_ms, self._dismiss_info)
+
+    def _stop_info_timer(self) -> None:
         if self.info_hide_timer is not None and self.info_hide_timer.IsRunning():
             self.info_hide_timer.Stop()
-        self.info_hide_timer = wx.CallLater(timeout_ms, self._dismiss_info)
+        self.info_hide_timer = None
 
     def _dismiss_info(self) -> None:
         if self.message_label is None:
             return
         self.message_label.SetLabel("")
         self.message_label.GetParent().Layout()
+        self.info_hide_timer = None
 
     def _format_guessed_slots(self) -> list[str]:
         if self.game is None:

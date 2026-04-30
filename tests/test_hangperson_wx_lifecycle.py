@@ -33,6 +33,9 @@ class _FakeFrame:
     def Destroy(self) -> None:
         self.destroy_calls += 1
 
+    def _destroy_frame(self) -> None:
+        self.Destroy()
+
 
 def test_round_complete_yes_starts_new_round() -> None:
     frame = _FakeFrame(replay=True)
@@ -68,6 +71,7 @@ class _FakeStartSessionFrame:
         self.session_rounds_played = -1
         self.session_rounds_won = -1
         self.info_messages: list[str] = []
+        self.dismiss_calls = 0
         self.started_round = 0
 
     def prompt_language_key(self) -> str | None:
@@ -86,7 +90,7 @@ class _FakeStartSessionFrame:
         pass
 
     def _dismiss_info(self) -> None:
-        pass
+        self.dismiss_calls += 1
 
     def start_new_round(self) -> None:
         self.started_round += 1
@@ -123,6 +127,7 @@ def test_start_session_shows_fallback_warning_when_scored_source_unavailable(
     assert started is True
     assert frame.words == ["mountain"]
     assert frame.info_messages == ["fallback: score source missing"]
+    assert frame.dismiss_calls == 0
     assert frame.started_round == 1
 
 
@@ -415,3 +420,41 @@ def test_load_character_bitmap_caches_missing_result() -> None:
     assert first is None
     assert second is None
     assert frame.load_calls == 1
+
+
+class _FakeInfoTimer:
+    def __init__(self, running: bool) -> None:
+        self.running = running
+        self.stop_calls = 0
+
+    def IsRunning(self) -> bool:
+        return self.running
+
+    def Stop(self) -> None:
+        self.stop_calls += 1
+        self.running = False
+
+
+class _FakeTimerFrame:
+    def __init__(self, timer: _FakeInfoTimer | None) -> None:
+        self.info_hide_timer = timer
+
+
+def test_stop_info_timer_stops_running_timer_and_clears_reference() -> None:
+    timer = _FakeInfoTimer(running=True)
+    frame = _FakeTimerFrame(timer)
+
+    HangpersonFrame._stop_info_timer(frame)  # type: ignore[arg-type]
+
+    assert timer.stop_calls == 1
+    assert frame.info_hide_timer is None
+
+
+def test_stop_info_timer_clears_non_running_timer_reference() -> None:
+    timer = _FakeInfoTimer(running=False)
+    frame = _FakeTimerFrame(timer)
+
+    HangpersonFrame._stop_info_timer(frame)  # type: ignore[arg-type]
+
+    assert timer.stop_calls == 0
+    assert frame.info_hide_timer is None
