@@ -217,6 +217,7 @@ class GuessInput(wx.Panel):
 class HangpersonFrame(wx.Frame):
     """Main GUI frame for the Hangperson game."""
 
+    APP_TITLE = "Hangperson"
     UI_MODE_SETUP = "setup"
     UI_MODE_ACTIVE = "active_round"
     UI_MODE_ROUND_COMPLETE = "round_complete"
@@ -314,7 +315,7 @@ class HangpersonFrame(wx.Frame):
     }
 
     def __init__(self) -> None:
-        super().__init__(None, title="Hangperson (wxPython)", size=(900, 560))
+        super().__init__(None, title=self.APP_TITLE, size=(900, 560))
         self.SetMinSize((780, self.MIN_FRAME_HEIGHT))
 
         self.ui: dict[str, object] = {}
@@ -1315,7 +1316,7 @@ class HangpersonFrame(wx.Frame):
                 widget.SetToolTip(diff_tip)
 
     def _apply_localized_labels(self) -> None:
-        self.SetTitle(str(self.ui["window_title"]))
+        self.SetTitle(self.APP_TITLE)
         self.guess_input.SetToolTip(str(self.ui["guess_input_label"]))
         if self.guess_input_panel is not None:
             self.guess_input_panel.SetToolTip(str(self.ui["guess_input_label"]))
