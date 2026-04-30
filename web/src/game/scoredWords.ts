@@ -6,6 +6,7 @@ import {
   isWordForLanguage,
   normalizeCasefold,
 } from './hangperson'
+import { publicPath } from './publicPath'
 
 export class ScoreWordSourceError extends Error {
   constructor(message: string) {
@@ -15,10 +16,10 @@ export class ScoreWordSourceError extends Error {
 }
 
 export const difficultyTsvPaths: Record<LanguageKey, string> = {
-  e: '/data/difficulty/en_difficulty.tsv',
-  f: '/data/difficulty/fr_difficulty.tsv',
-  r: '/data/difficulty/ru_difficulty.tsv',
-  el: '/data/difficulty/el_difficulty.tsv',
+  e: publicPath('data/difficulty/en_difficulty.tsv'),
+  f: publicPath('data/difficulty/fr_difficulty.tsv'),
+  r: publicPath('data/difficulty/ru_difficulty.tsv'),
+  el: publicPath('data/difficulty/el_difficulty.tsv'),
 }
 
 const validBands = new Set(['easy', 'medium', 'hard'])

@@ -1,4 +1,5 @@
 import { type DifficultyKey, type LanguageKey, languageSettings } from './hangperson'
+import { publicPath } from './publicPath'
 
 export type CharacterLayerKey =
   | 'silhouette'
@@ -84,7 +85,7 @@ export function currentCharacterLayerKeys(state: CharacterLayerState): Character
 }
 
 export function languageBadgePath(languageKey: LanguageKey): string {
-  return `/assets/images/language/lang_${languageSettings[languageKey].assetCode}.png`
+  return publicPath(`assets/images/language/lang_${languageSettings[languageKey].assetCode}.png`)
 }
 
 export function difficultyIconPath(difficultyKey: DifficultyKey): string {
@@ -93,7 +94,7 @@ export function difficultyIconPath(difficultyKey: DifficultyKey): string {
     '2': 'medium',
     '3': 'hard',
   }
-  return `/assets/images/difficulty/difficulty_${names[difficultyKey]}.png`
+  return publicPath(`assets/images/difficulty/difficulty_${names[difficultyKey]}.png`)
 }
 
 export function characterLayerPath(
@@ -101,9 +102,9 @@ export function characterLayerPath(
   layerKey: CharacterLayerKey,
 ): string {
   const code = languageSettings[languageKey].assetCode
-  return `/assets/images/people/${code}/${layerKey}_${code}.png`
+  return publicPath(`assets/images/people/${code}/${layerKey}_${code}.png`)
 }
 
-export const startButtonPath = '/assets/images/buttons/start_rocket.png'
-export const restartButtonPath = '/assets/images/buttons/restart_arrow.png'
-export const trophyPath = '/assets/images/decoration/trophy.png'
+export const startButtonPath = publicPath('assets/images/buttons/start_rocket.png')
+export const restartButtonPath = publicPath('assets/images/buttons/restart_arrow.png')
+export const trophyPath = publicPath('assets/images/decoration/trophy.png')

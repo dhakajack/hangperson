@@ -1,12 +1,13 @@
 import { type DifficultyKey, type LanguageKey, languageSettings } from './hangperson'
+import { publicPath } from './publicPath'
 import { loadScoredWordsForDifficulty } from './scoredWords'
 import type { UiLocale } from './session'
 
 export const localePaths: Record<LanguageKey, string> = {
-  e: '/data/locales/en.json',
-  f: '/data/locales/fr.json',
-  r: '/data/locales/ru.json',
-  el: '/data/locales/el.json',
+  e: publicPath('data/locales/en.json'),
+  f: publicPath('data/locales/fr.json'),
+  r: publicPath('data/locales/ru.json'),
+  el: publicPath('data/locales/el.json'),
 }
 
 export async function loadLocale(languageKey: LanguageKey): Promise<UiLocale> {
