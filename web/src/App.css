@@ -80,6 +80,7 @@
   display: grid;
   place-items: center;
   padding: 8px;
+  line-height: 0;
 }
 
 .difficulty-button {
@@ -103,15 +104,21 @@
 }
 
 .language-badge {
+  max-width: 100%;
+  max-height: 100%;
   width: 112px;
   height: 56px;
   object-fit: contain;
+  object-position: center center;
 }
 
 .difficulty-badge {
+  max-width: 100%;
+  max-height: 100%;
   width: 116px;
   height: 70px;
   object-fit: contain;
+  object-position: center center;
 }
 
 .action-button {
@@ -364,27 +371,54 @@
   .status-panel {
     flex-direction: row;
     justify-content: center;
+    gap: clamp(6px, 2vw, 10px);
+    padding: 10px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
     border-right: 0;
     border-bottom: 1px solid #b8c6d6;
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .score-block {
     width: auto;
-    min-width: 76px;
+    min-width: clamp(52px, 14vw, 64px);
     border-bottom: 0;
     padding-bottom: 0;
   }
 
+  .score-trophy {
+    width: clamp(36px, 10vw, 46px);
+    height: clamp(36px, 10vw, 46px);
+  }
+
+  .score-fraction {
+    font-size: clamp(1rem, 5vw, 1.25rem);
+  }
+
   .badge-button {
-    width: 112px;
-    min-height: 72px;
+    flex: 0 1 clamp(72px, 24vw, 92px);
+    width: auto;
+    height: clamp(54px, 16vw, 64px);
+    min-height: 0;
+    padding: 5px;
+  }
+
+  .language-badge,
+  .difficulty-badge {
+    width: auto;
+    height: auto;
   }
 
   .action-button {
-    width: 86px;
-    min-height: 72px;
+    flex: 0 1 clamp(58px, 19vw, 72px);
+    width: auto;
+    min-height: clamp(54px, 16vw, 64px);
     margin-top: 0;
+    padding: 6px;
+  }
+
+  .action-icon {
+    width: clamp(30px, 10vw, 38px);
+    height: clamp(30px, 10vw, 38px);
   }
 
   .play-panel {
@@ -411,5 +445,19 @@
 
   .guess-form {
     flex-wrap: wrap;
+  }
+
+  .word-area {
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-height: 70px;
+    padding: 10px 12px 14px;
+  }
+
+  .word-slot {
+    width: var(--word-slot-size, 36px);
+    height: var(--word-slot-height, 54px);
+    border-width: var(--word-slot-border, 2px);
+    font-size: var(--word-slot-font, 1.3rem);
   }
 }

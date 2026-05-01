@@ -19,6 +19,7 @@ dist/
 
 # Local tooling metadata
 .codex
+.deploy.env
 
 # Large generated files
 data/corpora/*_normalized.txt
@@ -31,4 +32,3 @@ data/corpora/*mb.txt
 # Mac rubbish
 *.DS_Store.DS_Store
 **/.DS_Store
-

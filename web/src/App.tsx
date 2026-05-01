@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import {
   characterLayerPath,
   currentCharacterLayerKeys,
@@ -37,9 +37,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function viewportWidth(): number {
+  if (typeof window === 'undefined') {
+    return 980
+  }
+  return Math.floor(window.visualViewport?.width ?? window.innerWidth)
+}
+
 function App() {
   const [state, setState] = useState(() => createInitialSessionState())
   const [guess, setGuess] = useState('')
+  const [screenWidth, setScreenWidth] = useState(viewportWidth)
 
   const displayLanguageKey = state.uiMode === 'setup' ? state.pendingLanguageKey : state.languageKey
   const displayDifficultyKey = state.uiMode === 'setup' ? state.pendingDifficultyKey : state.difficultyKey
@@ -59,6 +67,28 @@ function App() {
     state.uiMode === 'setup'
       ? t(state.locale, 'difficulty_click_hint', 'Click to change difficulty.')
       : difficultyName
+  const wordSlotStyle =
+    wordSlots.length > 0
+      ? (() => {
+          const size = Math.max(
+            20,
+            Math.min(
+              36,
+              Math.floor(
+                (Math.max(screenWidth - 36, 240) - Math.max(wordSlots.length - 1, 0) * 4) /
+                  wordSlots.length,
+              ),
+            ),
+          )
+
+          return {
+            '--word-slot-size': `${size}px`,
+            '--word-slot-height': `${Math.round(size * 1.5)}px`,
+            '--word-slot-border': `${Math.max(1, Math.round(size / 18))}px`,
+            '--word-slot-font': `${Math.round(size * 0.46)}px`,
+          } as CSSProperties
+        })()
+      : undefined
 
   useEffect(() => {
     let canceled = false
@@ -79,6 +109,19 @@ function App() {
       })
     return () => {
       canceled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleResize() {
+      setScreenWidth(viewportWidth())
+    }
+
+    window.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('resize', handleResize)
     }
   }, [])
 
@@ -240,7 +283,11 @@ function App() {
             {!state.loading && !state.message && <span className="message-placeholder"></span>}
           </div>
 
-          <div className="word-area" title={t(state.locale, 'target_word_tooltip', 'Guess this word')}>
+          <div
+            className="word-area"
+            style={wordSlotStyle}
+            title={t(state.locale, 'target_word_tooltip', 'Guess this word')}
+          >
             {wordSlots.length > 0 ? (
               wordSlots.map((letter, index) => (
                 <span className="word-slot" key={`${index}-${letter}`}>
