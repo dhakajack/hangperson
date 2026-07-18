@@ -4,8 +4,7 @@ A multilingual Hangman variant in Python. This started as CLI-based proof-of-con
 
 The game plays in English, French, Russian or Greek. As much as possible, it is icon-driven to keep the main interface independent of language, but all feedback to the player is rendered in the selected language. Game controls include a choice of difficulty (easy - medium - hard) and language. Type a guess; if it is correct, it will appear in the target word, if not, your number of remaining guesses goes down. On a graphic version, this is represented by body parts being drawn. When a full body is drawn, the game round is over. A score keeps track of how many rounds have been won with the currrent settings.
 
-More about the development history on my blog: 
-[text](https://blog.templaro.com/hangperson/)
+More about the development history on my [blog] (https://blog.templaro.com/hangperson/)
 
 ## Customize word list
 
