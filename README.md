@@ -426,3 +426,58 @@ python3 tools/flag_en_uk_us_variants.py \
   --input data/difficulty/en_difficulty.tsv \
   --output data/difficulty/en_difficulty_uk_us_flags.tsv
 ```
+
+## Web-based version
+
+The `web/` directory contains a browser-based version of Hangperson built with React,
+TypeScript, Vite, and Vitest. It reimplements the game/session logic for the browser
+while reusing the shared project assets, localized UI strings, and score-based
+difficulty TSV files from the top-level `assets/` and `data/` directories.
+
+The web app supports the same four languages as the desktop/CLI versions:
+English, French, Russian, and Greek. Language, difficulty, character artwork,
+localized messages, score tracking, replay flow, and reset flow are handled in the
+client.
+
+To run the web app locally:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+The dev and build scripts automatically run `npm run sync:assets`, which copies
+the required static files into `web/public/`:
+
+- `assets/images/`
+- `data/locales/`
+- `data/difficulty/`
+
+Those copied files are generated local build inputs and are intentionally ignored
+by git.
+
+Useful web commands:
+
+```bash
+cd web
+npm test -- --run
+npm run lint
+npm run build
+```
+
+By default, the Vite build assumes the app will be served from
+`/games/hangperson/`. To build for another base path, set `VITE_BASE_PATH`:
+
+```bash
+cd web
+VITE_BASE_PATH=/ npm run build
+```
+
+The repository also includes `deploy-web.sh`, which builds the web app and uses
+`rsync` to publish `web/dist/` to the target configured in a local `.deploy.env`
+file:
+
+```bash
+OPALSTACK_TARGET='user@server:/path/to/public_html/games/hangperson/'
+```
