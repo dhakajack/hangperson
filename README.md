@@ -1,4 +1,4 @@
-# Hangperson (wxPython Desktop Game)
+# Hangperson
 
 A multilingual Hangman variant in Python. This started as CLI-based proof-of-concept and ballooned into a GUI desktop version based on wxPython. Finally, it morphed again into a React/Vite application.
 
