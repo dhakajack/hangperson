@@ -342,11 +342,23 @@ npm run build
 ```
 
 By default, the Vite build assumes the app will be served from
-`/games/hangperson/`. To build for another base path, set `VITE_BASE_PATH`:
+`/games/hangperson/`, matching the public deployment at
+`https://templaro.com/games/hangperson/`. To build for another base path, set
+`VITE_BASE_PATH`:
 
 ```bash
 cd web
 VITE_BASE_PATH=/ npm run build
+```
+
+For itch.io, use a relative base path so the uploaded HTML game can run from the
+package root or itch.io's iframe URL:
+
+```bash
+cd web
+npm run build:itch
+cd dist
+zip -r ../hangperson-itch.zip .
 ```
 
 The repository also includes `deploy-web.sh`, which builds the web app and uses

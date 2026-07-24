@@ -9,6 +9,7 @@
     "dev": "vite",
     "prebuild": "npm run sync:assets",
     "build": "tsc -b && vite build",
+    "build:itch": "VITE_BASE_PATH=./ npm run build",
     "lint": "eslint .",
     "test": "vitest",
     "preview": "vite preview"
